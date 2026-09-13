@@ -1,0 +1,13 @@
+name: Cyberpunk
+borders: double
+colors:
+  primary: "#FF007F"
+  secondary: "#00F0FF"
+  background: "#080014"
+  foreground: "#E0E0FF"
+  success: "#00FFA3"
+  warning: "#FFE600"
+  danger: "#FF003C"
+  info: "#00E5FF"
+  muted: "#5B3A70"
+  accent: "#FFFF00"

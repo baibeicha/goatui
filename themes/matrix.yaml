@@ -1,0 +1,13 @@
+name: Matrix
+borders: block
+colors:
+  primary: "#00FF66"
+  secondary: "#008833"
+  background: "#001100"
+  foreground: "#00EE44"
+  success: "#00FF88"
+  warning: "#AAFF00"
+  danger: "#FF2200"
+  info: "#00CCFF"
+  muted: "#005522"
+  accent: "#55FF99"
