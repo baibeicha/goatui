@@ -37,7 +37,7 @@ func NewDriver() (Driver, error) {
 
 func (d *unixDriver) Init() error {
 	fd := int(os.Stdin.Fd())
-	termios, err := unix.IoctlGetTermios(fd, unix.TCGETS)
+	termios, err := unix.IoctlGetTermios(fd, tcgets)
 	if err == nil {
 		d.origTermios = termios
 		raw := *termios
@@ -51,7 +51,7 @@ func (d *unixDriver) Init() error {
 		raw.Cc[unix.VMIN] = 1
 		raw.Cc[unix.VTIME] = 0
 
-		_ = unix.IoctlSetTermios(fd, unix.TCSETS, &raw)
+		_ = unix.IoctlSetTermios(fd, tcsets, &raw)
 	}
 
 	// Register teardown hook
@@ -92,7 +92,7 @@ func (d *unixDriver) Close() error {
 		_ = d.outWriter.Flush()
 
 		if d.origTermios != nil {
-			_ = unix.IoctlSetTermios(int(os.Stdin.Fd()), unix.TCSETS, d.origTermios)
+			_ = unix.IoctlSetTermios(int(os.Stdin.Fd()), tcsets, d.origTermios)
 		}
 	})
 	return nil
