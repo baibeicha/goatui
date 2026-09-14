@@ -42,6 +42,9 @@ type (
 	TabItem      = widgets.TabItem
 	TreeView     = widgets.TreeView
 	TreeNode     = widgets.TreeNode
+	Checkbox      = widgets.Checkbox
+	CheckboxGroup = widgets.CheckboxGroup
+	CheckboxItem  = widgets.CheckboxItem
 
 	// Router Types
 	Router       = router.Router
@@ -284,6 +287,8 @@ var (
 	TableBorderNone    = widgets.TableBorderNone
 	NewTabs            = widgets.NewTabs
 	NewTreeView        = widgets.NewTreeView
+	NewCheckbox        = widgets.NewCheckbox
+	NewCheckboxGroup   = widgets.NewCheckboxGroup
 
 	// Router Constructors & Helpers
 	NewRouter       = router.NewRouter
