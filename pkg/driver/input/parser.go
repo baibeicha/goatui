@@ -86,9 +86,35 @@ func (p *Parser) Parse(data []byte, handler func(Event)) {
 				}
 				if ok {
 					handler(ev)
+				}
+				if consumed > 0 {
 					p.buf = p.buf[consumed:]
 					continue
 				}
+			}
+
+			// Handle OSC sequences (\x1b]...) e.g. terminal color queries or window titles
+			if p.buf[1] == ']' {
+				endIdx := -1
+				for i := 2; i < len(p.buf); i++ {
+					if p.buf[i] == '\a' {
+						endIdx = i + 1
+						break
+					}
+					if p.buf[i] == 0x1B && i+1 < len(p.buf) && p.buf[i+1] == '\\' {
+						endIdx = i + 2
+						break
+					}
+				}
+				if endIdx == -1 {
+					if len(p.buf) > 256 {
+						p.buf = p.buf[2:]
+						continue
+					}
+					return
+				}
+				p.buf = p.buf[endIdx:]
+				continue
 			}
 
 			// SS3 sequences (\x1bO...) e.g. F1-F4
