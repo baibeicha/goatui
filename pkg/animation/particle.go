@@ -44,13 +44,13 @@ func (ps *ParticleSystem) Emit(count int, x, y float64, vxMin, vxMax, vyMin, vyM
 	}
 	for i := 0; i < count; i++ {
 		p := Particle{
-			X:       x,
-			Y:       y,
-			Vx:      vxMin + rand.Float64()*(vxMax-vxMin),
-			Vy:      vyMin + rand.Float64()*(vyMax-vyMin),
-			Life:    lifeMin + rand.Float64()*(lifeMax-lifeMin),
-			Rune:    runes[rand.Intn(len(runes))],
-			Color:   colors[rand.Intn(len(colors))],
+			X:     x,
+			Y:     y,
+			Vx:    vxMin + rand.Float64()*(vxMax-vxMin),
+			Vy:    vyMin + rand.Float64()*(vyMax-vyMin),
+			Life:  lifeMin + rand.Float64()*(lifeMax-lifeMin),
+			Rune:  runes[rand.Intn(len(runes))],
+			Color: colors[rand.Intn(len(colors))],
 		}
 		p.MaxLife = p.Life
 		ps.particles = append(ps.particles, p)

@@ -204,11 +204,19 @@ func (h *HTTPViewerScreen) View(f *tea.Frame) {
 		statusStr = "[REQUEST FAILED]"
 	}
 
-	f.Buffer.SetString(area.X+2, area.Y, "🌐 URL: "+h.url, p.Accent, p.Background, cell.AttrBold)
+	urlArea := buffer.NewRect(area.X+2, area.Y, max(0, area.Width-4), 1)
+	f.Buffer.SetStringAligned(urlArea, "🌐 URL: "+h.url, buffer.AlignLeft, p.Accent, p.Background, cell.AttrBold)
+
+	statusW := buffer.StringWidth(statusStr)
 	f.Buffer.SetString(area.X+2, area.Y+1, statusStr, statusColor, p.Background, cell.AttrBold)
 	if !h.loading && h.duration > 0 {
-		meta := fmt.Sprintf("Latency: %v | Lines: %d | [↑/↓/PgUp/PgDn] Scroll | [R] Reload", h.duration.Round(time.Millisecond), len(h.lines))
-		f.Buffer.SetString(area.X+len(statusStr)+4, area.Y+1, meta, p.Foreground, p.Background, cell.AttrDim)
+		metaX := area.X + statusW + 4
+		metaW := max(0, area.Right()-metaX-1)
+		if metaW > 0 {
+			meta := fmt.Sprintf("Latency: %v | Lines: %d | [↑/↓/PgUp/PgDn] Scroll | [R] Reload", h.duration.Round(time.Millisecond), len(h.lines))
+			metaArea := buffer.NewRect(metaX, area.Y+1, metaW, 1)
+			f.Buffer.SetStringAligned(metaArea, meta, buffer.AlignLeft, p.Foreground, p.Background, cell.AttrDim)
+		}
 	}
 
 	// Body content box
@@ -238,13 +246,15 @@ func (h *HTTPViewerScreen) View(f *tea.Frame) {
 			break
 		}
 		lineNum := fmt.Sprintf("%4d │ ", idx+1)
+		lineNumW := buffer.StringWidth(lineNum)
 		f.Buffer.SetString(inner.X+1, inner.Y+i, lineNum, p.Secondary, cell.DefaultColor(), cell.AttrDim)
 
 		lineContent := h.lines[idx]
-		maxW := inner.Width - len(lineNum) - 2
-		if maxW > 0 && len(lineContent) > maxW {
-			lineContent = lineContent[:maxW]
+		contentX := inner.X + 1 + lineNumW
+		maxW := inner.Right() - contentX
+		if maxW > 0 {
+			lineArea := buffer.NewRect(contentX, inner.Y+i, maxW, 1)
+			f.Buffer.SetStringAligned(lineArea, lineContent, buffer.AlignLeft, p.Foreground, cell.DefaultColor(), 0)
 		}
-		f.Buffer.SetString(inner.X+1+len(lineNum), inner.Y+i, lineContent, p.Foreground, cell.DefaultColor(), 0)
 	}
 }

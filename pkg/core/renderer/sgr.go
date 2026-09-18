@@ -27,7 +27,7 @@ func (s *sgrState) reset() {
 // All byte appends are strictly zero-heap-allocation operations on the provided byte slice.
 func emitSGR(buf []byte, cur *sgrState, target cell.Cell) []byte {
 	// If current modifier has attributes that the target cell does NOT have, we must reset with SGR 0
-	if cur.modifier != target.Modifier && (cur.modifier &^ target.Modifier) != 0 {
+	if cur.modifier != target.Modifier && (cur.modifier&^target.Modifier) != 0 {
 		buf = append(buf, "\x1b[0m"...)
 		cur.reset()
 	}
@@ -154,6 +154,9 @@ func appendUint(dst []byte, n int) []byte {
 
 // appendRune appends UTF-8 bytes of r to dst without heap allocation.
 func appendRune(dst []byte, r rune) []byte {
+	if r == 0 {
+		return append(dst, ' ')
+	}
 	var buf [utf8.UTFMax]byte
 	n := utf8.EncodeRune(buf[:], r)
 	return append(dst, buf[:n]...)
@@ -165,8 +168,8 @@ func appendCursorMove(buf []byte, curX, curY, targetX, targetY int) []byte {
 		return buf
 	}
 
-	// Same line relative movement forward
-	if curY == targetY && targetX > curX && targetX-curX <= 4 {
+	// Same line relative movement forward (only valid if current X coordinate is known)
+	if curX >= 0 && curY == targetY && targetX > curX && targetX-curX <= 4 {
 		dist := targetX - curX
 		if dist == 1 {
 			return append(buf, "\x1b[C"...)

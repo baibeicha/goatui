@@ -13,10 +13,10 @@ import (
 
 type mockScreen struct {
 	BaseScreen
-	name     string
-	mounted  bool
-	paused   bool
-	resumed  bool
+	name      string
+	mounted   bool
+	paused    bool
+	resumed   bool
 	destroyed bool
 }
 
@@ -268,3 +268,48 @@ func TestOmnibarAddressDisplayAndDirectNavigation(t *testing.T) {
 	}
 }
 
+type pasteReceiverScreen struct {
+	BaseScreen
+	receivedPaste string
+}
+
+func (p *pasteReceiverScreen) Update(msg tea.Msg) (Screen, tea.Cmd) {
+	if paste, ok := msg.(tea.PasteMsg); ok {
+		p.receivedPaste = paste.Text
+	}
+	return p, nil
+}
+
+func TestModalPasteTrapAndOmnibarPaste(t *testing.T) {
+	r := router.NewRouter()
+	wm := NewWindowManager(r)
+
+	bgScreen := &pasteReceiverScreen{}
+	wm.Push(bgScreen, router.NewRouteContext("/", r.Session()))
+
+	// 1. Show InputModal
+	inputMod := NewInputModal("Title", "Prompt", "", nil, nil)
+	wm.Update(ShowModalMsg{Modal: inputMod})
+
+	// 2. Dispatch PasteMsg: must be captured by modal and NOT leak to bgScreen
+	wm.Update(tea.PasteMsg{Text: "my-secret-key-1234"})
+	if inputMod.input.Value() != "my-secret-key-1234" {
+		t.Errorf("Expected modal text input to contain pasted text, got %q", inputMod.input.Value())
+	}
+	if bgScreen.receivedPaste != "" {
+		t.Errorf("Pasted text leaked to background screen behind modal: %q", bgScreen.receivedPaste)
+	}
+
+	// 3. Close modal
+	wm.Update(CloseModalMsg{})
+
+	// 4. Open Omnibar and test paste
+	wm.Omnibar().Open()
+	wm.Update(tea.PasteMsg{Text: "/dashboard"})
+	if wm.Omnibar().input.Value() != "/dashboard" {
+		t.Errorf("Expected Omnibar to receive pasted text, got %q", wm.Omnibar().input.Value())
+	}
+	if bgScreen.receivedPaste != "" {
+		t.Errorf("Pasted text leaked to background screen behind Omnibar: %q", bgScreen.receivedPaste)
+	}
+}

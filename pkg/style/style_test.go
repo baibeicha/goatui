@@ -91,6 +91,16 @@ func TestBorderMerging(t *testing.T) {
 	}
 }
 
+func TestStyleDrawTinyRect(t *testing.T) {
+	buf := buffer.NewBuffer(10, 10)
+	st := NewStyle().Border(BorderNormal)
+
+	// Rect with width 1 or height 1 should not crash or draw invalid merged corners
+	st.Draw(buf, buffer.NewRect(0, 0, 1, 1), "")
+	st.Draw(buf, buffer.NewRect(0, 0, 5, 1), "")
+	st.Draw(buf, buffer.NewRect(0, 0, 1, 5), "")
+}
+
 func BenchmarkStyleDraw(b *testing.B) {
 	buf := buffer.NewBuffer(80, 24)
 	st := NewStyle().

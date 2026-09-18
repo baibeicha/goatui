@@ -248,7 +248,8 @@ func (tv *TreeView) Draw(buf *buffer.Buffer, area buffer.Rect) {
 
 		labelW := area.Right() - textX
 		if labelW > 0 {
-			buf.SetString(textX, currY, item.node.Label, st.GetFg(), st.GetBg(), st.GetModifier())
+			lineArea := buffer.NewRect(textX, currY, labelW, 1)
+			buf.SetStringAligned(lineArea, item.node.Label, buffer.AlignLeft, st.GetFg(), st.GetBg(), st.GetModifier())
 		}
 	}
 }

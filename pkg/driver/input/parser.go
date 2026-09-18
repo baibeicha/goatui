@@ -1,6 +1,7 @@
 package input
 
 import (
+	"strings"
 	"unicode/utf8"
 
 	"github.com/baibeicha/goatui/pkg/core/cell"
@@ -117,8 +118,12 @@ func (p *Parser) Parse(data []byte, handler func(Event)) {
 				continue
 			}
 
-			// SS3 sequences (\x1bO...) e.g. F1-F4
-			if p.buf[1] == 'O' && len(p.buf) >= 3 {
+			// SS3 sequences (\x1bO...) e.g. F1-F4 and DECCKM Application Cursor keys
+			if p.buf[1] == 'O' {
+				if len(p.buf) < 3 {
+					// Incomplete SS3 sequence, wait for more bytes
+					return
+				}
 				ev, ok := parseSS3(p.buf[2])
 				if ok {
 					handler(ev)
@@ -135,7 +140,7 @@ func (p *Parser) Parse(data []byte, handler func(Event)) {
 					Key: Key{
 						Type: KeyRune,
 						Rune: r,
-						Mod:  cell.AttrDim, // Used as Alt modifier representation
+						Mod:  ModAlt,
 					},
 				})
 				p.buf = p.buf[1+size:]
@@ -149,7 +154,7 @@ func (p *Parser) Parse(data []byte, handler func(Event)) {
 		case 0x00: // Ctrl+Space or Ctrl+@
 			handler(Event{
 				Type: EventKey,
-				Key:  Key{Type: KeySpace, Mod: cell.AttrReverse}, // Ctrl modifier flag
+				Key:  Key{Type: KeySpace, Mod: ModCtrl},
 			})
 			p.buf = p.buf[1:]
 			continue
@@ -241,55 +246,80 @@ func parseCSI(b []byte) (consumed int, ev Event, ok bool, incomplete bool) {
 		return parseKittyKeyboard(seq, consumed)
 	}
 
+	// Extract modifier parameters e.g. \x1b[1;5A or \x1b[3;5~
+	var mod cell.Modifier
+	keySeq := seq
+	if semiIdx := strings.IndexByte(seq, ';'); semiIdx != -1 {
+		keySeq = seq[:semiIdx]
+		modPart := seq[semiIdx+1:]
+		mVal := 0
+		for i := 0; i < len(modPart); i++ {
+			if modPart[i] >= '0' && modPart[i] <= '9' {
+				mVal = mVal*10 + int(modPart[i]-'0')
+			}
+		}
+		if mVal > 1 {
+			if (mVal-1)&1 != 0 {
+				mod.Add(cell.AttrUnderline) // Shift
+			}
+			if (mVal-1)&2 != 0 {
+				mod.Add(cell.AttrDim) // Alt
+			}
+			if (mVal-1)&4 != 0 {
+				mod.Add(cell.AttrBold) // Ctrl
+			}
+		}
+	}
+
 	// Standard functional arrows
 	switch term {
 	case 'A':
-		return consumed, Event{Type: EventKey, Key: Key{Type: KeyUp}}, true, false
+		return consumed, Event{Type: EventKey, Key: Key{Type: KeyUp, Mod: mod}}, true, false
 	case 'B':
-		return consumed, Event{Type: EventKey, Key: Key{Type: KeyDown}}, true, false
+		return consumed, Event{Type: EventKey, Key: Key{Type: KeyDown, Mod: mod}}, true, false
 	case 'C':
-		return consumed, Event{Type: EventKey, Key: Key{Type: KeyRight}}, true, false
+		return consumed, Event{Type: EventKey, Key: Key{Type: KeyRight, Mod: mod}}, true, false
 	case 'D':
-		return consumed, Event{Type: EventKey, Key: Key{Type: KeyLeft}}, true, false
+		return consumed, Event{Type: EventKey, Key: Key{Type: KeyLeft, Mod: mod}}, true, false
 	case 'H':
-		return consumed, Event{Type: EventKey, Key: Key{Type: KeyHome}}, true, false
+		return consumed, Event{Type: EventKey, Key: Key{Type: KeyHome, Mod: mod}}, true, false
 	case 'F':
-		return consumed, Event{Type: EventKey, Key: Key{Type: KeyEnd}}, true, false
+		return consumed, Event{Type: EventKey, Key: Key{Type: KeyEnd, Mod: mod}}, true, false
 	case 'Z':
-		return consumed, Event{Type: EventKey, Key: Key{Type: KeyBacktab}}, true, false
+		return consumed, Event{Type: EventKey, Key: Key{Type: KeyBacktab, Mod: mod}}, true, false
 	}
 
 	// Numeric ~ sequences (e.g. \x1b[3~ = Delete, \x1b[5~ = PgUp)
 	if term == '~' {
-		switch seq {
+		switch keySeq {
 		case "1", "7":
-			return consumed, Event{Type: EventKey, Key: Key{Type: KeyHome}}, true, false
+			return consumed, Event{Type: EventKey, Key: Key{Type: KeyHome, Mod: mod}}, true, false
 		case "2":
-			return consumed, Event{Type: EventKey, Key: Key{Type: KeyInsert}}, true, false
+			return consumed, Event{Type: EventKey, Key: Key{Type: KeyInsert, Mod: mod}}, true, false
 		case "3":
-			return consumed, Event{Type: EventKey, Key: Key{Type: KeyDelete}}, true, false
+			return consumed, Event{Type: EventKey, Key: Key{Type: KeyDelete, Mod: mod}}, true, false
 		case "4", "8":
-			return consumed, Event{Type: EventKey, Key: Key{Type: KeyEnd}}, true, false
+			return consumed, Event{Type: EventKey, Key: Key{Type: KeyEnd, Mod: mod}}, true, false
 		case "5":
-			return consumed, Event{Type: EventKey, Key: Key{Type: KeyPgUp}}, true, false
+			return consumed, Event{Type: EventKey, Key: Key{Type: KeyPgUp, Mod: mod}}, true, false
 		case "6":
-			return consumed, Event{Type: EventKey, Key: Key{Type: KeyPgDown}}, true, false
+			return consumed, Event{Type: EventKey, Key: Key{Type: KeyPgDown, Mod: mod}}, true, false
 		case "11", "15":
-			return consumed, Event{Type: EventKey, Key: Key{Type: KeyF5}}, true, false
+			return consumed, Event{Type: EventKey, Key: Key{Type: KeyF5, Mod: mod}}, true, false
 		case "12", "17":
-			return consumed, Event{Type: EventKey, Key: Key{Type: KeyF6}}, true, false
+			return consumed, Event{Type: EventKey, Key: Key{Type: KeyF6, Mod: mod}}, true, false
 		case "13", "18":
-			return consumed, Event{Type: EventKey, Key: Key{Type: KeyF7}}, true, false
+			return consumed, Event{Type: EventKey, Key: Key{Type: KeyF7, Mod: mod}}, true, false
 		case "14", "19":
-			return consumed, Event{Type: EventKey, Key: Key{Type: KeyF8}}, true, false
+			return consumed, Event{Type: EventKey, Key: Key{Type: KeyF8, Mod: mod}}, true, false
 		case "20":
-			return consumed, Event{Type: EventKey, Key: Key{Type: KeyF9}}, true, false
+			return consumed, Event{Type: EventKey, Key: Key{Type: KeyF9, Mod: mod}}, true, false
 		case "21":
-			return consumed, Event{Type: EventKey, Key: Key{Type: KeyF10}}, true, false
+			return consumed, Event{Type: EventKey, Key: Key{Type: KeyF10, Mod: mod}}, true, false
 		case "23":
-			return consumed, Event{Type: EventKey, Key: Key{Type: KeyF11}}, true, false
+			return consumed, Event{Type: EventKey, Key: Key{Type: KeyF11, Mod: mod}}, true, false
 		case "24":
-			return consumed, Event{Type: EventKey, Key: Key{Type: KeyF12}}, true, false
+			return consumed, Event{Type: EventKey, Key: Key{Type: KeyF12, Mod: mod}}, true, false
 		}
 	}
 
@@ -298,6 +328,18 @@ func parseCSI(b []byte) (consumed int, ev Event, ok bool, incomplete bool) {
 
 func parseSS3(b byte) (Event, bool) {
 	switch b {
+	case 'A':
+		return Event{Type: EventKey, Key: Key{Type: KeyUp}}, true
+	case 'B':
+		return Event{Type: EventKey, Key: Key{Type: KeyDown}}, true
+	case 'C':
+		return Event{Type: EventKey, Key: Key{Type: KeyRight}}, true
+	case 'D':
+		return Event{Type: EventKey, Key: Key{Type: KeyLeft}}, true
+	case 'H':
+		return Event{Type: EventKey, Key: Key{Type: KeyHome}}, true
+	case 'F':
+		return Event{Type: EventKey, Key: Key{Type: KeyEnd}}, true
 	case 'P':
 		return Event{Type: EventKey, Key: Key{Type: KeyF1}}, true
 	case 'Q':
@@ -340,9 +382,21 @@ func parseSGRMouse(b []byte) (consumed int, ev Event, ok bool, incomplete bool) 
 		return consumed, Event{}, false, false
 	}
 
+	var mouseMod cell.Modifier
+	if (btn & 4) != 0 {
+		mouseMod.Add(ModShift)
+	}
+	if (btn & 8) != 0 {
+		mouseMod.Add(ModAlt)
+	}
+	if (btn & 16) != 0 {
+		mouseMod.Add(ModCtrl)
+	}
+
 	mouse := Mouse{
-		X: x - 1, // Convert 1-indexed terminal coords to 0-indexed
-		Y: y - 1,
+		X:   x - 1, // Convert 1-indexed terminal coords to 0-indexed
+		Y:   y - 1,
+		Mod: mouseMod,
 	}
 
 	if isRelease {

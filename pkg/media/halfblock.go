@@ -174,7 +174,7 @@ func (r *HalfBlockRenderer) DrawImage(buf *buffer.Buffer, area buffer.Rect, img 
 		if x < 0 || x >= dstW || y < 0 || y >= dstH {
 			return 0, 0, 0, false
 		}
-		
+
 		if scaleX < 1.0 || scaleY < 1.0 {
 			// Downscaling: use area average
 			srcX0 := float64(bounds.Min.X) + float64(x)*scaleX
@@ -195,8 +195,8 @@ func (r *HalfBlockRenderer) DrawImage(buf *buffer.Buffer, area buffer.Rect, img 
 	for row := 0; row < area.Height; row++ {
 		screenY := area.Y + row
 		// Map terminal row to two canvas rows based on aspect ratio
-		canvasYTop := int(float64(row) / aspect) - startY
-		canvasYBot := int((float64(row) + 0.5) / aspect) - startY
+		canvasYTop := int(float64(row)/aspect) - startY
+		canvasYBot := int((float64(row)+0.5)/aspect) - startY
 
 		for col := 0; col < area.Width; col++ {
 			screenX := area.X + col

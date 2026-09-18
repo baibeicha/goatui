@@ -50,11 +50,33 @@ const (
 	KeyF12
 )
 
+// Modifier flags for keyboard and mouse events
+const (
+	ModCtrl  cell.Modifier = cell.AttrBold
+	ModAlt   cell.Modifier = cell.AttrDim
+	ModShift cell.Modifier = cell.AttrUnderline
+)
+
 // Key represents a keyboard event with modifiers.
 type Key struct {
 	Type KeyType
 	Rune rune
 	Mod  cell.Modifier
+}
+
+// HasCtrl returns whether the Ctrl modifier is active.
+func (k Key) HasCtrl() bool {
+	return k.Mod.Has(ModCtrl)
+}
+
+// HasAlt returns whether the Alt modifier is active.
+func (k Key) HasAlt() bool {
+	return k.Mod.Has(ModAlt)
+}
+
+// HasShift returns whether the Shift modifier is active.
+func (k Key) HasShift() bool {
+	return k.Mod.Has(ModShift)
 }
 
 // MouseButton denotes which mouse button triggered an event.
@@ -88,6 +110,21 @@ type Mouse struct {
 	Button MouseButton
 	Action MouseAction
 	Mod    cell.Modifier
+}
+
+// HasCtrl returns whether the Ctrl modifier is active.
+func (m Mouse) HasCtrl() bool {
+	return m.Mod.Has(ModCtrl)
+}
+
+// HasAlt returns whether the Alt modifier is active.
+func (m Mouse) HasAlt() bool {
+	return m.Mod.Has(ModAlt)
+}
+
+// HasShift returns whether the Shift modifier is active.
+func (m Mouse) HasShift() bool {
+	return m.Mod.Has(ModShift)
 }
 
 // Event is a unified input event received from the terminal driver.

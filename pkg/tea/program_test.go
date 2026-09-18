@@ -13,7 +13,7 @@ import (
 )
 
 type testCounterModel struct {
-	count  int
+	count   int
 	clicked bool
 }
 

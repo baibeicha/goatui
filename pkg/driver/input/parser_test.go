@@ -102,4 +102,45 @@ func TestParseIncompleteEscapeSequence(t *testing.T) {
 	if len(events) != 1 || events[0].Key.Type != KeyDown {
 		t.Errorf("Expected KeyDown after completion, got %+v", events)
 	}
+
+	// Incomplete SS3 sequence
+	events = events[:0]
+	p.Parse([]byte("\x1bO"), handler)
+	if len(events) != 0 {
+		t.Fatalf("Expected 0 events for incomplete SS3 sequence, got %d", len(events))
+	}
+	// Complete SS3 sequence with 'A' (Up arrow in DECCKM mode)
+	p.Parse([]byte("A"), handler)
+	if len(events) != 1 || events[0].Key.Type != KeyUp {
+		t.Errorf("Expected KeyUp for \\x1bOA, got %+v", events)
+	}
+}
+
+func TestParseModifiersAndMouse(t *testing.T) {
+	p := NewParser()
+
+	var events []Event
+	handler := func(ev Event) {
+		events = append(events, ev)
+	}
+
+	// Ctrl+Space (0x00) should have ModCtrl
+	p.Parse([]byte{0x00}, handler)
+	if len(events) != 1 || events[0].Key.Type != KeySpace || !events[0].Key.HasCtrl() {
+		t.Errorf("Expected KeySpace with ModCtrl, got %+v", events)
+	}
+
+	// Ctrl+Click SGR mouse: btn 0 + 16 = 16: \x1b[<16;5;10M
+	events = events[:0]
+	p.Parse([]byte("\x1b[<16;5;10M"), handler)
+	if len(events) != 1 || !events[0].Mouse.HasCtrl() || events[0].Mouse.Button != MouseLeft {
+		t.Errorf("Expected Left Click with Ctrl modifier, got %+v", events)
+	}
+
+	// Shift+Alt+RightClick SGR mouse: btn 2 + 4 + 8 = 14: \x1b[<14;5;10M
+	events = events[:0]
+	p.Parse([]byte("\x1b[<14;5;10M"), handler)
+	if len(events) != 1 || !events[0].Mouse.HasShift() || !events[0].Mouse.HasAlt() || events[0].Mouse.Button != MouseRight {
+		t.Errorf("Expected Right Click with Shift+Alt modifier, got %+v", events)
+	}
 }

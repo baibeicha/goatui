@@ -53,16 +53,19 @@ func SplitInto(area buffer.Rect, dir Direction, constraints []Constraint, dst []
 	}
 
 	remaining := totalSpace
-	totalFlex := 0
 
-	// Pass 1: Resolve Fixed, Percent, Ratio, and Min sizes
+	// Pass 1: Resolve Fixed constraints first (invariant non-negotiable sizes)
 	for i, c := range constraints {
-		switch c.Type {
-		case TypeFixed:
+		if c.Type == TypeFixed {
 			size := min(c.Val, remaining)
 			sizes[i] = size
 			remaining -= size
+		}
+	}
 
+	// Pass 2: Resolve Percent and Ratio constraints (proportional fractions of total space)
+	for i, c := range constraints {
+		switch c.Type {
 		case TypePercent:
 			size := (totalSpace * c.Val) / 100
 			size = min(size, remaining)
@@ -77,22 +80,26 @@ func SplitInto(area buffer.Rect, dir Direction, constraints []Constraint, dst []
 			size = min(size, remaining)
 			sizes[i] = size
 			remaining -= size
-
-		case TypeMin:
-			size := min(c.Val, remaining)
-			sizes[i] = size
-			remaining -= size
-
-		case TypeMax:
-			// Initialized to max, will be limited if needed
-			sizes[i] = 0
-
-		case TypeFlex:
-			totalFlex += c.Val
 		}
 	}
 
-	// Pass 2: Distribute remaining space among Flex constraints
+	// Pass 3: Resolve Min and Max constraints
+	for i, c := range constraints {
+		switch c.Type {
+		case TypeMin, TypeMax:
+			size := min(c.Val, remaining)
+			sizes[i] = size
+			remaining -= size
+		}
+	}
+
+	// Pass 4: Distribute remaining space among Flex constraints
+	totalFlex := 0
+	for _, c := range constraints {
+		if c.Type == TypeFlex {
+			totalFlex += c.Val
+		}
+	}
 	if totalFlex > 0 && remaining > 0 {
 		flexSpace := remaining
 		allocated := 0
@@ -114,13 +121,6 @@ func SplitInto(area buffer.Rect, dir Direction, constraints []Constraint, dst []
 			}
 		}
 		remaining = 0
-	}
-
-	// Pass 3: Clamp Max constraints
-	for i, c := range constraints {
-		if c.Type == TypeMax && sizes[i] > c.Val {
-			sizes[i] = c.Val
-		}
 	}
 
 	// Pass 4: Construct destination rectangles

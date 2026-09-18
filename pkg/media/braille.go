@@ -21,10 +21,11 @@ func NewBrailleRenderer() *BrailleRenderer {
 
 // brailleOffset maps (dx, dy) within a 2x4 cell to the braille bit offset.
 // Braille Unicode dots are arranged:
-//   (0,0)=bit0  (1,0)=bit3
-//   (0,1)=bit1  (1,1)=bit4
-//   (0,2)=bit2  (1,2)=bit5
-//   (0,3)=bit6  (1,3)=bit7
+//
+//	(0,0)=bit0  (1,0)=bit3
+//	(0,1)=bit1  (1,1)=bit4
+//	(0,2)=bit2  (1,2)=bit5
+//	(0,3)=bit6  (1,3)=bit7
 var brailleOffset = [2][4]uint8{
 	{0, 1, 2, 6}, // column 0
 	{3, 4, 5, 7}, // column 1
@@ -46,8 +47,8 @@ func (br *BrailleRenderer) DrawImage(buf *buffer.Buffer, area buffer.Rect, img i
 	}
 
 	// Canvas dimensions in braille subpixels
-	canvasW := area.Width * 2   // 2 dots per cell horizontally
-	canvasH := area.Height * 4  // 4 dots per cell vertically
+	canvasW := area.Width * 2  // 2 dots per cell horizontally
+	canvasH := area.Height * 4 // 4 dots per cell vertically
 
 	scaleX := float64(srcW) / float64(canvasW)
 	scaleY := float64(srcH) / float64(canvasH)
@@ -76,10 +77,18 @@ func (br *BrailleRenderer) DrawImage(buf *buffer.Buffer, area buffer.Rect, img i
 			srcX := int(float64(x)*scaleX + 0.5)
 			srcY := int(float64(y)*scaleY + 0.5)
 
-			if srcX >= srcW { srcX = srcW - 1 }
-			if srcY >= srcH { srcY = srcH - 1 }
-			if srcX < 0 { srcX = 0 }
-			if srcY < 0 { srcY = 0 }
+			if srcX >= srcW {
+				srcX = srcW - 1
+			}
+			if srcY >= srcH {
+				srcY = srcH - 1
+			}
+			if srcX < 0 {
+				srcX = 0
+			}
+			if srcY < 0 {
+				srcY = 0
+			}
 
 			r, g, b, _ := img.At(bounds.Min.X+srcX, bounds.Min.Y+srcY).RGBA()
 			rc := float64(r >> 8)

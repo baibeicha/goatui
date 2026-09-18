@@ -42,9 +42,9 @@ func TestRuneWidth(t *testing.T) {
 		{'Z', 1},
 		{'1', 1},
 		{' ', 1},
-		{'你', 2}, // CJK
-		{'好', 2}, // CJK
-		{'🚀', 2}, // Rocket emoji
+		{'你', 2},    // CJK
+		{'好', 2},    // CJK
+		{'🚀', 2},    // Rocket emoji
 		{0x0300, 0}, // Combining grave accent
 		{0x2699, 1}, // Gear symbol: NOT wide in narrow terminals
 		{0x270F, 1}, // Pencil symbol: NOT wide

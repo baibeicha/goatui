@@ -208,3 +208,33 @@ func TestExplorerFileOperationsAndMultiSelect(t *testing.T) {
 		t.Errorf("Expected copiedFile to be deleted")
 	}
 }
+
+func TestExplorerUnicodeSafety(t *testing.T) {
+	tmpDir, err := os.MkdirTemp("", "goatui_unicode_test")
+	if err != nil {
+		t.Fatalf("MkdirTemp failed: %v", err)
+	}
+	defer os.RemoveAll(tmpDir)
+
+	// Create long Cyrillic and CJK files
+	cyrFile := filepath.Join(tmpDir, "Очень_Длинный_Файл_С_Русскими_Буквами_2026.txt")
+	cyrContent := "Строка 1: Привет, Мир! Проверка рендеринга русских букв без паники и разделения байт UTF-8.\nСтрока 2: Вторая длинная строка для проверки ограничения ширины текста."
+	_ = os.WriteFile(cyrFile, []byte(cyrContent), 0644)
+
+	exp := NewFileExplorerScreen(tmpDir)
+	frame := &tea.Frame{
+		Buffer: buffer.NewBuffer(40, 15),
+	}
+
+	// Rendering in narrow 40x15 terminal area should not panic or split multi-byte characters
+	exp.View(frame)
+
+	// Mount the unicode file and view
+	ctx := &router.RouteContext{
+		Path:   "file:///" + filepath.ToSlash(cyrFile),
+		Params: map[string]string{},
+		Query:  map[string]string{},
+	}
+	exp.OnMount(ctx)
+	exp.View(frame)
+}

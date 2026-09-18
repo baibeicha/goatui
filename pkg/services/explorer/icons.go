@@ -47,7 +47,7 @@ type iconEntry struct {
 var iconSets = [4]iconEntry{
 	// ASCII
 	{Dir: "[DIR]", Source: "[SRC]", Image: "[IMG]", Video: "[VID]", Config: "[CFG]", Doc: "[DOC]", Archive: "[ARC]", Binary: "[BIN]", Generic: "[   ]"},
-	// Unicode  
+	// Unicode
 	{Dir: "\u25A0", Source: "\u00B7", Image: "\u00A7", Video: "\u25C6", Config: "\u25B6", Doc: "\u25B2", Archive: "\u25CB", Binary: "\u2666", Generic: "\u00B7"},
 	// NerdFont (use common nerd font codepoints)
 	{Dir: "\uF07B", Source: "\uF15C", Image: "\uF03E", Video: "\uF008", Config: "\uF013", Doc: "\uF0F6", Archive: "\uF187", Binary: "\uF471", Generic: "\uF016"},

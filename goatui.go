@@ -35,16 +35,24 @@ type (
 	VerticalAlignment = buffer.VerticalAlignment
 
 	// Table & Widget Types
-	TableColumn  = widgets.TableColumn
-	TableBorder  = widgets.TableBorder
-	VirtualTable = widgets.VirtualTable
-	Tabs         = widgets.Tabs
-	TabItem      = widgets.TabItem
-	TreeView     = widgets.TreeView
-	TreeNode     = widgets.TreeNode
-	Checkbox      = widgets.Checkbox
-	CheckboxGroup = widgets.CheckboxGroup
-	CheckboxItem  = widgets.CheckboxItem
+	TableColumn       = widgets.TableColumn
+	TableBorder       = widgets.TableBorder
+	VirtualTable      = widgets.VirtualTable
+	VirtualList       = widgets.VirtualList
+	ItemRenderer      = widgets.ItemRenderer
+	TableCellRenderer = widgets.TableCellRenderer
+	Tabs              = widgets.Tabs
+	TabItem           = widgets.TabItem
+	TreeView          = widgets.TreeView
+	TreeNode          = widgets.TreeNode
+	Checkbox          = widgets.Checkbox
+	CheckboxGroup     = widgets.CheckboxGroup
+	CheckboxItem      = widgets.CheckboxItem
+	TextInput         = widgets.TextInput
+	EchoMode          = widgets.EchoMode
+	Gauge             = widgets.Gauge
+	Sparkline         = widgets.Sparkline
+	BrailleCanvas     = widgets.BrailleCanvas
 
 	// Router Types
 	Router       = router.Router
@@ -162,6 +170,9 @@ type (
 	MouseMsg      = tea.MouseMsg
 	HitMsg        = tea.HitMsg
 	WindowSizeMsg = tea.WindowSizeMsg
+	PasteMsg      = tea.PasteMsg
+	FocusMsg      = tea.FocusMsg
+	BlurMsg       = tea.BlurMsg
 	QuitMsg       = tea.QuitMsg
 )
 
@@ -176,6 +187,11 @@ type (
 )
 
 const (
+	// Modifier shortcuts
+	ModCtrl  = input.ModCtrl
+	ModAlt   = input.ModAlt
+	ModShift = input.ModShift
+
 	KeyRune      = input.KeyRune
 	KeyEnter     = input.KeyEnter
 	KeyEsc       = input.KeyEsc
@@ -230,28 +246,33 @@ const (
 	ScaleFit     = media.ScaleFit
 	ScaleFill    = media.ScaleFill
 	ScaleStretch = media.ScaleStretch
+
+	// Echo Modes for TextInput
+	EchoNormal   = widgets.EchoNormal
+	EchoPassword = widgets.EchoPassword
+	EchoNone     = widgets.EchoNone
 )
 
 // Global Constructors and Helpers
 var (
 	// Program
-	NewProgram    = tea.NewProgram
-	WithDriver    = tea.WithDriver
+	NewProgram     = tea.NewProgram
+	WithDriver     = tea.WithDriver
 	WithCatchCtrlC = tea.WithCatchCtrlC
-	Batch         = tea.Batch
-	Sequence      = tea.Sequence
-	Tick          = tea.Tick
-	Quit          = tea.Quit
+	Batch          = tea.Batch
+	Sequence       = tea.Sequence
+	Tick           = tea.Tick
+	Quit           = tea.Quit
 
 	// Styling
-	NewStyle          = style.NewStyle
-	BorderNormal      = style.BorderNormal
-	BorderRounded     = style.BorderRounded
-	BorderThick       = style.BorderThick
-	BorderDouble      = style.BorderDouble
-	BorderASCII       = style.BorderASCII
-	BorderBlock       = style.BorderBlock
-	MergeBoxRunes     = style.MergeBoxRunes
+	NewStyle      = style.NewStyle
+	BorderNormal  = style.BorderNormal
+	BorderRounded = style.BorderRounded
+	BorderThick   = style.BorderThick
+	BorderDouble  = style.BorderDouble
+	BorderASCII   = style.BorderASCII
+	BorderBlock   = style.BorderBlock
+	MergeBoxRunes = style.MergeBoxRunes
 
 	// Color Constructors
 	ColorHex     = cell.ColorHex
@@ -279,16 +300,24 @@ var (
 	RuneWidth   = buffer.RuneWidth
 
 	// Table & Widget Constructors
-	NewTable           = widgets.NewTable
-	NewVirtualTable    = widgets.NewVirtualTable
-	TableBorderRounded = widgets.TableBorderRounded
-	TableBorderNormal  = widgets.TableBorderNormal
-	TableBorderClean   = widgets.TableBorderClean
-	TableBorderNone    = widgets.TableBorderNone
-	NewTabs            = widgets.NewTabs
-	NewTreeView        = widgets.NewTreeView
-	NewCheckbox        = widgets.NewCheckbox
-	NewCheckboxGroup   = widgets.NewCheckboxGroup
+	NewTable                   = widgets.NewTable
+	NewVirtualTable            = widgets.NewVirtualTable
+	NewVirtualList             = widgets.NewVirtualList
+	DefaultTextRenderer        = widgets.DefaultTextRenderer
+	DefaultAlignedTextRenderer = widgets.DefaultAlignedTextRenderer
+	TableBorderRounded         = widgets.TableBorderRounded
+	TableBorderNormal          = widgets.TableBorderNormal
+	TableBorderClean           = widgets.TableBorderClean
+	TableBorderNone            = widgets.TableBorderNone
+	NewTabs                    = widgets.NewTabs
+	NewTreeView                = widgets.NewTreeView
+	NewCheckbox                = widgets.NewCheckbox
+	NewCheckboxGroup           = widgets.NewCheckboxGroup
+	NewTextInput               = widgets.NewTextInput
+	NewGauge                   = widgets.NewGauge
+	NewSparkline               = widgets.NewSparkline
+	NewBrailleCanvas           = widgets.NewBrailleCanvas
+	RenderCellText             = widgets.RenderCellText
 
 	// Router Constructors & Helpers
 	NewRouter       = router.NewRouter
@@ -305,7 +334,9 @@ var (
 	NewConfirmModal       = window.ConfirmModal
 	ConfirmModal          = window.ConfirmModal
 	NewInputModal         = window.NewInputModal
+	NewPasswordModal      = window.NewPasswordModal
 	NewOmnibar            = window.NewOmnibar
+	ToggleOmnibar         = window.ToggleOmnibar
 	NewAccessDeniedScreen = window.NewAccessDeniedScreen
 	ToggleRole            = window.ToggleRole
 
@@ -318,6 +349,9 @@ var (
 	NordTheme       = theme.Nord
 	MonokaiTheme    = theme.Monokai
 	GoatDarkTheme   = theme.GoatDark
+	CyberpunkTheme  = theme.Cyberpunk
+	MatrixTheme     = theme.Matrix
+	ForestTheme     = theme.Forest
 	ParseThemeYAML  = theme.ParseThemeYAML
 
 	// Security Constructors & Guards
@@ -349,19 +383,19 @@ var (
 	ShimmerOffset          = animation.ShimmerOffset
 
 	// Easing curves
-	Linear          = animation.Linear
-	EaseInQuad      = animation.EaseInQuad
-	EaseOutQuad     = animation.EaseOutQuad
-	EaseInOutQuad   = animation.EaseInOutQuad
-	EaseInCubic     = animation.EaseInCubic
-	EaseOutCubic    = animation.EaseOutCubic
-	EaseInOutCubic  = animation.EaseInOutCubic
-	EaseInElastic   = animation.EaseInElastic
-	EaseOutElastic  = animation.EaseOutElastic
+	Linear           = animation.Linear
+	EaseInQuad       = animation.EaseInQuad
+	EaseOutQuad      = animation.EaseOutQuad
+	EaseInOutQuad    = animation.EaseInOutQuad
+	EaseInCubic      = animation.EaseInCubic
+	EaseOutCubic     = animation.EaseOutCubic
+	EaseInOutCubic   = animation.EaseInOutCubic
+	EaseInElastic    = animation.EaseInElastic
+	EaseOutElastic   = animation.EaseOutElastic
 	EaseInOutElastic = animation.EaseInOutElastic
-	EaseInBounce    = animation.EaseInBounce
-	EaseOutBounce   = animation.EaseOutBounce
-	EaseInOutBounce = animation.EaseInOutBounce
+	EaseInBounce     = animation.EaseInBounce
+	EaseOutBounce    = animation.EaseOutBounce
+	EaseInOutBounce  = animation.EaseInOutBounce
 
 	// Media Constructors & Protocol Detection
 	DetectProtocol     = media.DetectProtocol

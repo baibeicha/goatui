@@ -854,16 +854,37 @@ func (s *FileExplorerScreen) DrawInArea(f *tea.Frame, area buffer.Rect) {
 			s.pathInput.Draw(f.Buffer, innerAddr)
 		} else {
 			disp := s.currentDir
-			maxDisp := innerAddr.Width - 36
-			if maxDisp > 10 && buffer.StringWidth(disp) > maxDisp {
-				disp = "..." + disp[len(disp)-(maxDisp-3):]
-			}
-			f.Buffer.SetString(innerAddr.X+1, innerAddr.Y, disp, p.Foreground, p.Background, cell.AttrBold)
-
-			// Right-aligned action hints
 			hints := "[E] Edit  [/] Search  [Enter] Open  [Backspace] Up  [R] Reload"
-			hintsX := innerAddr.Right() - buffer.StringWidth(hints) - 1
-			if hintsX > innerAddr.X+buffer.StringWidth(disp)+4 {
+			hintsW := buffer.StringWidth(hints)
+
+			showHints := innerAddr.Width > hintsW+20
+			maxDisp := innerAddr.Width - 2
+			if showHints {
+				maxDisp = innerAddr.Width - hintsW - 4
+			}
+			if maxDisp > 4 && buffer.StringWidth(disp) > maxDisp {
+				runes := []rune(disp)
+				targetW := maxDisp - 3
+				w := 0
+				startIdx := len(runes)
+				for i := len(runes) - 1; i >= 0; i-- {
+					rw := buffer.RuneWidth(runes[i])
+					if rw == 0 {
+						rw = 1
+					}
+					if w+rw > targetW {
+						break
+					}
+					w += rw
+					startIdx = i
+				}
+				disp = "..." + string(runes[startIdx:])
+			}
+			addrArea := buffer.NewRect(innerAddr.X+1, innerAddr.Y, max(0, maxDisp), 1)
+			f.Buffer.SetStringAligned(addrArea, disp, buffer.AlignLeft, p.Foreground, p.Background, cell.AttrBold)
+
+			if showHints {
+				hintsX := innerAddr.Right() - hintsW - 1
 				f.Buffer.SetString(hintsX, innerAddr.Y, hints, p.Muted, p.Background, cell.AttrDim)
 			}
 		}
@@ -1004,9 +1025,25 @@ func (s *FileExplorerScreen) drawFileList(buf *buffer.Buffer, area buffer.Rect, 
 		nameMaxW := inner.Right() - colX - 9
 		name := entry.Name
 		if buffer.StringWidth(name) > nameMaxW && nameMaxW > 3 {
-			name = name[:nameMaxW-3] + "..."
+			runes := []rune(name)
+			targetW := nameMaxW - 3
+			curW := 0
+			endRune := 0
+			for i, r := range runes {
+				rw := buffer.RuneWidth(r)
+				if rw == 0 {
+					rw = 1
+				}
+				if curW+rw > targetW {
+					break
+				}
+				curW += rw
+				endRune = i + 1
+			}
+			name = string(runes[:endRune]) + "..."
 		}
-		buf.SetString(colX, y, name, fg, bg, mod)
+		nameArea := buffer.NewRect(colX, y, max(0, nameMaxW), 1)
+		buf.SetStringAligned(nameArea, name, buffer.AlignLeft, fg, bg, mod)
 
 		// File size aligned right
 		sizeStr := ""
@@ -1039,8 +1076,23 @@ func (s *FileExplorerScreen) drawPreview(buf *buffer.Buffer, area buffer.Rect, t
 	title := " Live Inspector "
 	if s.previewFile != "" {
 		base := filepath.Base(s.previewFile)
-		if len(base) > 24 {
-			base = base[:21] + "..."
+		if buffer.StringWidth(base) > 24 {
+			runes := []rune(base)
+			targetW := 21
+			curW := 0
+			endRune := 0
+			for i, r := range runes {
+				rw := buffer.RuneWidth(r)
+				if rw == 0 {
+					rw = 1
+				}
+				if curW+rw > targetW {
+					break
+				}
+				curW += rw
+				endRune = i + 1
+			}
+			base = string(runes[:endRune]) + "..."
 		}
 		title = fmt.Sprintf(" Preview: %s ", base)
 	}
@@ -1097,13 +1149,15 @@ func (s *FileExplorerScreen) drawPreview(buf *buffer.Buffer, area buffer.Rect, t
 		textInner := buffer.NewRect(inner.X, inner.Y+2, inner.Width, inner.Height-2)
 		for i := 0; i < textInner.Height && i < len(s.textLines); i++ {
 			lineNum := fmt.Sprintf("%3d │ ", i+1)
+			lineNumW := buffer.StringWidth(lineNum)
 			buf.SetString(textInner.X+1, textInner.Y+i, lineNum, p.Secondary, p.Background, cell.AttrDim)
 			lineContent := s.textLines[i]
-			maxLen := textInner.Width - buffer.StringWidth(lineNum) - 2
-			if maxLen > 0 && len(lineContent) > maxLen {
-				lineContent = lineContent[:maxLen]
+			contentX := textInner.X + 1 + lineNumW
+			maxLen := textInner.Right() - contentX - 1
+			if maxLen > 0 {
+				lineArea := buffer.NewRect(contentX, textInner.Y+i, maxLen, 1)
+				buf.SetStringAligned(lineArea, lineContent, buffer.AlignLeft, p.Foreground, p.Background, 0)
 			}
-			buf.SetString(textInner.X+1+buffer.StringWidth(lineNum), textInner.Y+i, lineContent, p.Foreground, p.Background, 0)
 		}
 
 	case PreviewHex:

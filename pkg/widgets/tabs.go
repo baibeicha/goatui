@@ -128,10 +128,12 @@ func (t *Tabs) HandleKey(key input.Key) bool {
 			return true
 		}
 	case input.KeyRune:
-		for i, item := range t.items {
-			if item.Hotkey != 0 && unicode.ToLower(item.Hotkey) == unicode.ToLower(key.Rune) {
-				t.activeIdx = i
-				return true
+		if !key.HasCtrl() && !key.HasAlt() {
+			for i, item := range t.items {
+				if item.Hotkey != 0 && unicode.ToLower(item.Hotkey) == unicode.ToLower(key.Rune) {
+					t.activeIdx = i
+					return true
+				}
 			}
 		}
 	}

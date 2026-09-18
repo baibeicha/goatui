@@ -1,4 +1,4 @@
-﻿package goatui_test
+package goatui_test
 
 import (
 	"testing"
@@ -62,5 +62,55 @@ func TestGoatUIExports(t *testing.T) {
 	enc := goatui.NewSixelEncoder()
 	if enc == nil {
 		t.Fatal("expected sixel encoder != nil")
+	}
+
+	// Newly exported widgets & constructors
+	vl := goatui.NewVirtualList(10, goatui.DefaultTextRenderer([]string{"a", "b"}, goatui.DefaultColor(), goatui.DefaultColor()))
+	if vl == nil || vl.TotalItems() != 10 {
+		t.Fatalf("expected vl.TotalItems() == 10, got %v", vl)
+	}
+
+	ti := goatui.NewTextInput().SetPasswordMode(true)
+	if ti == nil || ti.EchoMode() != goatui.EchoPassword {
+		t.Fatal("expected TextInput with EchoPassword")
+	}
+
+	gauge := goatui.NewGauge().SetPercent(0.75)
+	if gauge == nil {
+		t.Fatal("expected gauge != nil")
+	}
+
+	spark := goatui.NewSparkline([]float64{1, 2, 3})
+	if spark == nil {
+		t.Fatal("expected spark != nil")
+	}
+
+	bc := goatui.NewBrailleCanvas(20, 10)
+	if bc == nil || bc.SubWidth() != 40 {
+		t.Fatal("expected braille canvas subwidth 40")
+	}
+
+	pwModal := goatui.NewPasswordModal("Auth", "Enter pass:", nil, nil)
+	if pwModal == nil {
+		t.Fatal("expected pwModal != nil")
+	}
+
+	// Built-in Themes
+	if goatui.CyberpunkTheme.Name != "Cyberpunk" {
+		t.Errorf("expected CyberpunkTheme, got %s", goatui.CyberpunkTheme.Name)
+	}
+	if goatui.MatrixTheme.Name != "Matrix" {
+		t.Errorf("expected MatrixTheme, got %s", goatui.MatrixTheme.Name)
+	}
+	if goatui.ForestTheme.Name != "Forest" {
+		t.Errorf("expected ForestTheme, got %s", goatui.ForestTheme.Name)
+	}
+
+	// Message types & Modifiers
+	_ = goatui.PasteMsg{Text: "pasted"}
+	_ = goatui.FocusMsg{}
+	_ = goatui.BlurMsg{}
+	if goatui.ModCtrl == 0 || goatui.ModAlt == 0 || goatui.ModShift == 0 {
+		t.Errorf("expected non-zero modifier constants")
 	}
 }

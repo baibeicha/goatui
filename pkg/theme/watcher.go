@@ -53,6 +53,9 @@ func NewThemeManager() *ThemeManager {
 	tm.Register(CatppuccinMocha)
 	tm.Register(Nord)
 	tm.Register(Monokai)
+	tm.Register(Cyberpunk)
+	tm.Register(Matrix)
+	tm.Register(Forest)
 
 	return tm
 }

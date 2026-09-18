@@ -178,6 +178,211 @@ func TestTextInputEditing(t *testing.T) {
 	if ti.Value() != "H" {
 		t.Errorf("Expected 'H' after backspace, got %q", ti.Value())
 	}
+
+	// Word editing test
+	ti.SetValue("hello world test")
+	ti.HandleKey(input.Key{Type: input.KeyLeft, Mod: cell.AttrBold})
+	// Cursor should jump to start of 'test'
+	if ti.Cursor() != 12 {
+		t.Errorf("Expected cursor at 12 after word jump, got %d", ti.Cursor())
+	}
+	ti.HandleKey(input.Key{Type: input.KeyBackspace, Mod: cell.AttrBold})
+	// 'world ' should be deleted
+	if ti.Value() != "hello test" {
+		t.Errorf("Expected 'hello test' after word delete, got %q", ti.Value())
+	}
+
+	// Password mode test
+	passInput := NewTextInput().SetPasswordMode(true)
+	passInput.SetValue("secret123")
+	if passInput.EchoMode() != EchoPassword {
+		t.Errorf("Expected EchoPassword, got %v", passInput.EchoMode())
+	}
+	if passInput.Value() != "secret123" {
+		t.Errorf("Expected plaintext value 'secret123', got %q", passInput.Value())
+	}
+	buf := buffer.NewBuffer(30, 1)
+	passInput.Draw(buf, buffer.NewRect(0, 0, 20, 1))
+	// Verify mask rune '•' was rendered
+	foundMask := false
+	for _, c := range buf.Cells() {
+		if c.Rune == '•' {
+			foundMask = true
+			break
+		}
+	}
+	if !foundMask {
+		t.Errorf("Expected masked runes '•' to be drawn in password mode")
+	}
+}
+
+func TestVirtualTableNavigation(t *testing.T) {
+	cols := []TableColumn{
+		{Title: "ID", Width: 8},
+		{Title: "Name", Flex: 1},
+	}
+	vt := NewTable(cols).SetTotalRows(100)
+	if vt.Selected() != 0 {
+		t.Fatalf("Expected initial selected 0, got %d", vt.Selected())
+	}
+
+	vt.PageDown(20)
+	if vt.Selected() != 20 {
+		t.Errorf("Expected selected 20 after PageDown, got %d", vt.Selected())
+	}
+
+	vt.PageUp(10)
+	if vt.Selected() != 10 {
+		t.Errorf("Expected selected 10 after PageUp, got %d", vt.Selected())
+	}
+
+	vt.ScrollToBottom()
+	if vt.Selected() != 99 {
+		t.Errorf("Expected selected 99 after ScrollToBottom, got %d", vt.Selected())
+	}
+
+	vt.ScrollToTop()
+	if vt.Selected() != 0 {
+		t.Errorf("Expected selected 0 after ScrollToTop, got %d", vt.Selected())
+	}
+
+	// Test HandleKey
+	vt.HandleKey(input.Key{Type: input.KeyRune, Rune: 'j'}, 10)
+	if vt.Selected() != 1 {
+		t.Errorf("Expected selected 1 after 'j', got %d", vt.Selected())
+	}
+
+	vt.HandleKey(input.Key{Type: input.KeyRune, Rune: 'k'}, 10)
+	if vt.Selected() != 0 {
+		t.Errorf("Expected selected 0 after 'k', got %d", vt.Selected())
+	}
+
+	vt.HandleKey(input.Key{Type: input.KeyRune, Rune: 'G'}, 10)
+	if vt.Selected() != 99 {
+		t.Errorf("Expected selected 99 after 'G', got %d", vt.Selected())
+	}
+}
+
+func TestVirtualListNavigation(t *testing.T) {
+	vl := NewVirtualList(100, nil)
+	if vl.Selected() != 0 {
+		t.Fatalf("Expected initial selected 0, got %d", vl.Selected())
+	}
+
+	vl.PageDown(20)
+	if vl.Selected() != 20 {
+		t.Errorf("Expected selected 20 after PageDown, got %d", vl.Selected())
+	}
+
+	vl.PageUp(10)
+	if vl.Selected() != 10 {
+		t.Errorf("Expected selected 10 after PageUp, got %d", vl.Selected())
+	}
+
+	vl.ScrollToBottom()
+	if vl.Selected() != 99 {
+		t.Errorf("Expected selected 99 after ScrollToBottom, got %d", vl.Selected())
+	}
+
+	vl.ScrollToTop()
+	if vl.Selected() != 0 {
+		t.Errorf("Expected selected 0 after ScrollToTop, got %d", vl.Selected())
+	}
+
+	// Test HandleKey
+	vl.HandleKey(input.Key{Type: input.KeyRune, Rune: 'j'}, 10)
+	if vl.Selected() != 1 {
+		t.Errorf("Expected selected 1 after 'j', got %d", vl.Selected())
+	}
+
+	vl.HandleKey(input.Key{Type: input.KeyRune, Rune: 'k'}, 10)
+	if vl.Selected() != 0 {
+		t.Errorf("Expected selected 0 after 'k', got %d", vl.Selected())
+	}
+
+	// Test HandleMouse click and wheel
+	area := buffer.NewRect(0, 0, 50, 10)
+	vl.HandleMouse(tea.MouseMsg{Mouse: input.Mouse{Action: input.MousePress, Button: input.MouseLeft, X: 5, Y: 4}}, area)
+	if vl.Selected() != 4 {
+		t.Errorf("Expected selected 4 after mouse click, got %d", vl.Selected())
+	}
+
+	vl.HandleMouse(tea.MouseMsg{Mouse: input.Mouse{Button: input.MouseWheelDown}}, area)
+	if vl.Selected() != 5 {
+		t.Errorf("Expected selected 5 after mouse wheel down, got %d", vl.Selected())
+	}
+}
+
+func TestTextInputUnicodeAndPaste(t *testing.T) {
+	ti := NewTextInput()
+
+	// Cyrillic word movement and deletion
+	ti.SetValue("Привет Мир Тест")
+	ti.HandleKey(input.Key{Type: input.KeyLeft, Mod: input.ModCtrl})
+	// Cursor should jump to start of "Тест" (index 11)
+	if ti.Cursor() != 11 {
+		t.Errorf("Expected cursor at 11 after Cyrillic word jump, got %d", ti.Cursor())
+	}
+	ti.HandleKey(input.Key{Type: input.KeyBackspace, Mod: input.ModCtrl})
+	if ti.Value() != "Привет Тест" {
+		t.Errorf("Expected 'Привет Тест' after Cyrillic word delete, got %q", ti.Value())
+	}
+
+	// Test InsertString (paste simulation with multiline)
+	ti.SetValue("Hello ")
+	ti.InsertString("World\r\n2026")
+	if ti.Value() != "Hello World2026" {
+		t.Errorf("Expected newlines stripped in InsertString, got %q", ti.Value())
+	}
+
+	// Test CJK wide-character cursor rendering
+	ti.SetValue("你好世界")
+	ti.SetCursor(0)
+	buf := buffer.NewBuffer(20, 1)
+	ti.Draw(buf, buffer.NewRect(0, 0, 20, 1))
+	// Cell at 0 must have Rune: '你', Width: 2, and cell at 1 must have Width: 0 continuation
+	c0 := buf.Cell(2, 0) // offset by prompt "> " (width 2)
+	c1 := buf.Cell(3, 0)
+	if c0 == nil || c0.Rune != '你' || c0.Width != 2 || !c0.Modifier.Has(cell.AttrReverse) {
+		t.Errorf("Expected wide cursor cell at (2,0), got %+v", c0)
+	}
+	if c1 == nil || c1.Width != 0 {
+		t.Errorf("Expected wide continuation cell at (3,0), got %+v", c1)
+	}
+}
+
+func TestHotkeyModifierIsolation(t *testing.T) {
+	// Verify that Ctrl+K does NOT trigger vim 'k' in VirtualTable or VirtualList
+	vt := NewTable([]TableColumn{{Title: "A"}}).SetTotalRows(10)
+	vt.Select(5)
+	ctrlK := input.Key{Type: input.KeyRune, Rune: 'k', Mod: input.ModCtrl}
+	if vt.HandleKey(ctrlK, 10) {
+		t.Errorf("VirtualTable should NOT handle Ctrl+K as vim up")
+	}
+	if vt.Selected() != 5 {
+		t.Errorf("VirtualTable selection should remain 5, got %d", vt.Selected())
+	}
+
+	vl := NewVirtualList(10, nil)
+	vl.Select(5)
+	if vl.HandleKey(ctrlK, 10) {
+		t.Errorf("VirtualList should NOT handle Ctrl+K as vim up")
+	}
+	if vl.Selected() != 5 {
+		t.Errorf("VirtualList selection should remain 5, got %d", vl.Selected())
+	}
+
+	// Verify Tabs does NOT handle Ctrl+hotkey
+	tabs := NewTabs(TabItem{Title: "Home", Hotkey: 'k'})
+	if tabs.HandleKey(ctrlK) {
+		t.Errorf("Tabs should NOT trigger hotkey when Ctrl is active")
+	}
+
+	// Verify CheckboxGroup does NOT handle Ctrl+hotkey
+	cg := NewCheckboxGroup(CheckboxItem{Label: "Item", Hotkey: 'k'})
+	if cg.HandleKey(ctrlK) {
+		t.Errorf("CheckboxGroup should NOT trigger hotkey when Ctrl is active")
+	}
 }
 
 func BenchmarkVirtualListScroll(b *testing.B) {

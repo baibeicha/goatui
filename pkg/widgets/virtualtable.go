@@ -299,6 +299,80 @@ func (vt *VirtualTable) ScrollUp(n int) {
 	vt.Select(vt.selectedRow - n)
 }
 
+// PageDown moves selection down by a page (default 10 rows if pageSize <= 0).
+func (vt *VirtualTable) PageDown(pageSize int) {
+	if pageSize <= 0 {
+		pageSize = 10
+	}
+	vt.ScrollDown(pageSize)
+}
+
+// PageUp moves selection up by a page (default 10 rows if pageSize <= 0).
+func (vt *VirtualTable) PageUp(pageSize int) {
+	if pageSize <= 0 {
+		pageSize = 10
+	}
+	vt.ScrollUp(pageSize)
+}
+
+// ScrollToTop moves selection to the very first row.
+func (vt *VirtualTable) ScrollToTop() {
+	vt.Select(0)
+}
+
+// ScrollToBottom moves selection to the very last row.
+func (vt *VirtualTable) ScrollToBottom() {
+	if vt.totalRows > 0 {
+		vt.Select(vt.totalRows - 1)
+	}
+}
+
+// HandleKey processes keyboard navigation for the table (Up/Down, PgUp/PgDn, Home/End, j/k/g/G).
+func (vt *VirtualTable) HandleKey(k input.Key, pageSize int) bool {
+	if pageSize <= 0 {
+		pageSize = 10
+	}
+
+	switch k.Type {
+	case input.KeyUp:
+		vt.ScrollUp(1)
+		return true
+	case input.KeyDown:
+		vt.ScrollDown(1)
+		return true
+	case input.KeyPgUp:
+		vt.PageUp(pageSize)
+		return true
+	case input.KeyPgDown:
+		vt.PageDown(pageSize)
+		return true
+	case input.KeyHome:
+		vt.ScrollToTop()
+		return true
+	case input.KeyEnd:
+		vt.ScrollToBottom()
+		return true
+	case input.KeyRune:
+		if !k.HasCtrl() && !k.HasAlt() {
+			switch k.Rune {
+			case 'k':
+				vt.ScrollUp(1)
+				return true
+			case 'j':
+				vt.ScrollDown(1)
+				return true
+			case 'g':
+				vt.ScrollToTop()
+				return true
+			case 'G':
+				vt.ScrollToBottom()
+				return true
+			}
+		}
+	}
+	return false
+}
+
 // SelectNext moves selection to the next row.
 func (vt *VirtualTable) SelectNext() {
 	vt.ScrollDown(1)

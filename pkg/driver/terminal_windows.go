@@ -13,15 +13,15 @@ import (
 )
 
 type windowsDriver struct {
-	hStdin     windows.Handle
-	hStdout    windows.Handle
-	origInMode uint32
+	hStdin      windows.Handle
+	hStdout     windows.Handle
+	origInMode  uint32
 	origOutMode uint32
-	parser     *input.Parser
-	events     chan input.Event
-	closeOnce  sync.Once
-	stopChan   chan struct{}
-	outWriter  *bufio.Writer
+	parser      *input.Parser
+	events      chan input.Event
+	closeOnce   sync.Once
+	stopChan    chan struct{}
+	outWriter   *bufio.Writer
 }
 
 // NewDriver creates an OS terminal driver for Windows.

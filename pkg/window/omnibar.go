@@ -133,15 +133,15 @@ func fuzzyMatch(pattern, target string) (bool, int, []int) {
 	pRunes := []rune(strings.ToLower(pattern))
 	tRunes := []rune(target)
 	tLower := []rune(strings.ToLower(target))
-	
+
 	pIdx := 0
 	score := 0
 	var indices []int
-	
+
 	for tIdx, r := range tLower {
 		if pIdx < len(pRunes) && r == pRunes[pIdx] {
 			indices = append(indices, tIdx)
-			
+
 			score += 10
 			if tIdx == 0 {
 				score += 5
@@ -154,7 +154,7 @@ func fuzzyMatch(pattern, target string) (bool, int, []int) {
 			pIdx++
 		}
 	}
-	
+
 	return pIdx == len(pRunes), score, indices
 }
 
@@ -328,6 +328,10 @@ func (o *Omnibar) Update(msg tea.Msg) (bool, tea.Cmd) {
 				return true, nil
 			}
 		}
+	case tea.PasteMsg:
+		o.input.InsertString(msg.Text)
+		o.filter()
+		return true, nil
 	}
 
 	return false, nil
@@ -463,14 +467,14 @@ func (o *Omnibar) View(f *tea.Frame) {
 						}
 					}
 				}
-				
+
 				rMod := mod
 				rFg := fg
 				if isMatch {
 					rMod = cell.AttrBold
 					rFg = cell.ColorHex("#FFD700") // Highlight color
 				}
-				
+
 				w := buffer.RuneWidth(r)
 				f.Buffer.SetRune(cx, itemY, r, rFg, bg, rMod)
 				cx += w

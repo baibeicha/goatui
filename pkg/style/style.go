@@ -328,20 +328,16 @@ func (s Style) Draw(buf *buffer.Buffer, area buffer.Rect, text string) {
 			continue
 		}
 
-		lineWidth := buffer.StringWidth(line)
-		startX := pArea.X
-		switch s.alignH {
-		case AlignCenter:
-			startX += max(0, (pArea.Width-lineWidth)/2)
-		case AlignRight:
-			startX += max(0, pArea.Width-lineWidth)
-		}
-
-		buf.SetString(startX, currY, line, s.fg, s.bg, s.modifier)
+		lineArea := buffer.NewRect(pArea.X, currY, pArea.Width, 1)
+		buf.SetStringAligned(lineArea, line, s.alignH, s.fg, s.bg, s.modifier)
 	}
 }
 
 func (s Style) drawBorder(buf *buffer.Buffer, r buffer.Rect) {
+	if r.Width < 2 || r.Height < 2 {
+		return
+	}
+
 	b := s.border
 	fg := s.borderFg
 	bg := s.borderBg

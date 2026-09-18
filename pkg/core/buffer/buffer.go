@@ -145,6 +145,10 @@ func (b *Buffer) SetRune(x, y int, r rune, fg, bg cell.Color, mod cell.Modifier)
 	if w == 0 && r != 0 {
 		w = 1
 	}
+	if w == 2 && x+1 >= b.width {
+		r = ' '
+		w = 1
+	}
 
 	idx := y*b.width + x
 	b.cells[idx] = cell.Cell{

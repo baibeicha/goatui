@@ -5,6 +5,7 @@ import (
 
 	"github.com/baibeicha/goatui/pkg/core/buffer"
 	"github.com/baibeicha/goatui/pkg/core/cell"
+	"github.com/baibeicha/goatui/pkg/driver/input"
 	"github.com/baibeicha/goatui/pkg/router"
 	"github.com/baibeicha/goatui/pkg/tea"
 )
@@ -44,10 +45,10 @@ func Pop() tea.Msg {
 // WindowManager coordinates the screen navigation stack, modal overlays, URL router, and Omnibar.
 // It implements tea.Model, so it can be passed directly to goatui.NewProgram(wm).
 type WindowManager struct {
-	mu          sync.RWMutex
-	router      *router.Router
-	stack       []Screen
-	activeModal Modal
+	mu            sync.RWMutex
+	router        *router.Router
+	stack         []Screen
+	activeModal   Modal
 	omnibar       *Omnibar
 	notFound      Screen
 	currentRoute  string
@@ -205,7 +206,7 @@ func (wm *WindowManager) Update(msg tea.Msg) (tea.Model, tea.Cmd) {
 			}
 		}
 		return wm, nil
-		
+
 	case NavigateReplaceMsg:
 		if wm.router != nil {
 			handler, ctx, ok := wm.router.Match(msg.URL)
@@ -293,17 +294,17 @@ func (wm *WindowManager) Update(msg tea.Msg) (tea.Model, tea.Cmd) {
 	// 2. Global Hotkey: Ctrl+K to toggle Omnibar
 	if keyMsg, ok := msg.(tea.KeyMsg); ok {
 		// Ctrl+K
-		if keyMsg.Key.Type == 0 && keyMsg.Key.Rune == 'k' && keyMsg.Key.Mod.Has(1<<0) {
+		if keyMsg.Key.Type == input.KeyRune && keyMsg.Key.Rune == 'k' && keyMsg.Key.HasCtrl() {
 			wm.syncOmnibarAddress()
 			wm.omnibar.Toggle()
 			return wm, nil
 		}
 	}
 
-	// Check if message is interactive user input (keyboard/mouse)
+	// Check if message is interactive user input (keyboard/mouse/clipboard)
 	isUserInput := false
 	switch msg.(type) {
-	case tea.KeyMsg, tea.MouseMsg, tea.HitMsg:
+	case tea.KeyMsg, tea.MouseMsg, tea.HitMsg, tea.PasteMsg:
 		isUserInput = true
 	}
 

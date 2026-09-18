@@ -55,13 +55,15 @@ func (sm *SpatialMap) HitTest(x, y int) (HitTarget, bool) {
 	sm.mu.RLock()
 	defer sm.mu.RUnlock()
 
+	found := false
 	bestIdx := -1
-	bestZ := -1000000
+	bestZ := 0
 
 	for i := len(sm.targets) - 1; i >= 0; i-- {
 		t := &sm.targets[i]
 		if t.Area.Contains(x, y) {
-			if t.ZIndex > bestZ {
+			if !found || t.ZIndex > bestZ {
+				found = true
 				bestZ = t.ZIndex
 				bestIdx = i
 			}

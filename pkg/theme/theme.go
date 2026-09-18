@@ -123,6 +123,57 @@ var (
 		},
 		Borders: resolveBorder("rounded"),
 	}
+
+	Cyberpunk = Theme{
+		Name: "Cyberpunk",
+		Colors: ColorPalette{
+			Primary:    cell.ColorHex("#FF007F"),
+			Secondary:  cell.ColorHex("#00F0FF"),
+			Background: cell.ColorHex("#080014"),
+			Foreground: cell.ColorHex("#E0E0FF"),
+			Success:    cell.ColorHex("#00FFA3"),
+			Warning:    cell.ColorHex("#FFE600"),
+			Danger:     cell.ColorHex("#FF003C"),
+			Info:       cell.ColorHex("#00E5FF"),
+			Muted:      cell.ColorHex("#5B3A70"),
+			Accent:     cell.ColorHex("#FFFF00"),
+		},
+		Borders: resolveBorder("double"),
+	}
+
+	Matrix = Theme{
+		Name: "Matrix",
+		Colors: ColorPalette{
+			Primary:    cell.ColorHex("#00FF66"),
+			Secondary:  cell.ColorHex("#008833"),
+			Background: cell.ColorHex("#001100"),
+			Foreground: cell.ColorHex("#00EE44"),
+			Success:    cell.ColorHex("#00FF88"),
+			Warning:    cell.ColorHex("#AAFF00"),
+			Danger:     cell.ColorHex("#FF2200"),
+			Info:       cell.ColorHex("#00CCFF"),
+			Muted:      cell.ColorHex("#005522"),
+			Accent:     cell.ColorHex("#55FF99"),
+		},
+		Borders: resolveBorder("normal"),
+	}
+
+	Forest = Theme{
+		Name: "Forest",
+		Colors: ColorPalette{
+			Primary:    cell.ColorHex("#73D216"),
+			Secondary:  cell.ColorHex("#4E9A06"),
+			Background: cell.ColorHex("#141E14"),
+			Foreground: cell.ColorHex("#E4F0D0"),
+			Success:    cell.ColorHex("#8AE234"),
+			Warning:    cell.ColorHex("#FCE94F"),
+			Danger:     cell.ColorHex("#EF2929"),
+			Info:       cell.ColorHex("#729FCF"),
+			Muted:      cell.ColorHex("#555753"),
+			Accent:     cell.ColorHex("#AD7FA8"),
+		},
+		Borders: resolveBorder("rounded"),
+	}
 )
 
 func resolveBorder(name string) BorderConfig {

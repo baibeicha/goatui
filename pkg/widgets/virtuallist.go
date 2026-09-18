@@ -3,7 +3,9 @@ package widgets
 import (
 	"github.com/baibeicha/goatui/pkg/core/buffer"
 	"github.com/baibeicha/goatui/pkg/core/cell"
+	"github.com/baibeicha/goatui/pkg/driver/input"
 	"github.com/baibeicha/goatui/pkg/style"
+	"github.com/baibeicha/goatui/pkg/tea"
 )
 
 // ItemRenderer renders a single visible row in the virtual list.
@@ -46,6 +48,11 @@ func (vl *VirtualList) SetTotalItems(total int) {
 	vl.clampOffset(20) // Default fallback
 }
 
+// TotalItems returns the total count of items in the list.
+func (vl *VirtualList) TotalItems() int {
+	return vl.totalItems
+}
+
 // Selected returns the currently active item index.
 func (vl *VirtualList) Selected() int {
 	return vl.selected
@@ -75,6 +82,118 @@ func (vl *VirtualList) ScrollDown(n int) {
 // ScrollUp moves selection up by n items.
 func (vl *VirtualList) ScrollUp(n int) {
 	vl.Select(vl.selected - n)
+}
+
+// PageDown moves selection down by a page (default 10 items if pageSize <= 0).
+func (vl *VirtualList) PageDown(pageSize int) {
+	if pageSize <= 0 {
+		pageSize = 10
+	}
+	vl.ScrollDown(pageSize)
+}
+
+// PageUp moves selection up by a page (default 10 items if pageSize <= 0).
+func (vl *VirtualList) PageUp(pageSize int) {
+	if pageSize <= 0 {
+		pageSize = 10
+	}
+	vl.ScrollUp(pageSize)
+}
+
+// ScrollToTop moves selection to the very first item.
+func (vl *VirtualList) ScrollToTop() {
+	vl.Select(0)
+}
+
+// ScrollToBottom moves selection to the very last item.
+func (vl *VirtualList) ScrollToBottom() {
+	if vl.totalItems > 0 {
+		vl.Select(vl.totalItems - 1)
+	}
+}
+
+// SelectNext moves selection to the next item.
+func (vl *VirtualList) SelectNext() {
+	vl.ScrollDown(1)
+}
+
+// SelectPrev moves selection to the previous item.
+func (vl *VirtualList) SelectPrev() {
+	vl.ScrollUp(1)
+}
+
+// HandleKey processes keyboard navigation for the list (Up/Down, PgUp/PgDn, Home/End, j/k/g/G).
+func (vl *VirtualList) HandleKey(k input.Key, pageSize int) bool {
+	if pageSize <= 0 {
+		pageSize = 10
+	}
+
+	switch k.Type {
+	case input.KeyUp:
+		vl.ScrollUp(1)
+		return true
+	case input.KeyDown:
+		vl.ScrollDown(1)
+		return true
+	case input.KeyPgUp:
+		vl.PageUp(pageSize)
+		return true
+	case input.KeyPgDown:
+		vl.PageDown(pageSize)
+		return true
+	case input.KeyHome:
+		vl.ScrollToTop()
+		return true
+	case input.KeyEnd:
+		vl.ScrollToBottom()
+		return true
+	case input.KeyRune:
+		if !k.HasCtrl() && !k.HasAlt() {
+			switch k.Rune {
+			case 'k':
+				vl.ScrollUp(1)
+				return true
+			case 'j':
+				vl.ScrollDown(1)
+				return true
+			case 'g':
+				vl.ScrollToTop()
+				return true
+			case 'G':
+				vl.ScrollToBottom()
+				return true
+			}
+		}
+	}
+	return false
+}
+
+// HandleMouse processes mouse events (wheel scrolling and item selection) for the list.
+func (vl *VirtualList) HandleMouse(msg tea.MouseMsg, area buffer.Rect) bool {
+	if !area.Contains(msg.X, msg.Y) {
+		return false
+	}
+	if msg.Button == input.MouseWheelUp {
+		vl.ScrollUp(1)
+		return true
+	}
+	if msg.Button == input.MouseWheelDown {
+		vl.ScrollDown(1)
+		return true
+	}
+	if msg.Action == input.MousePress && msg.Button == input.MouseLeft {
+		itemH := vl.itemHeight
+		if itemH <= 0 {
+			itemH = 1
+		}
+		row := (msg.Y - area.Y) / itemH
+		targetIdx := vl.offset + row
+		if targetIdx >= 0 && targetIdx < vl.totalItems {
+			vl.Select(targetIdx)
+			return true
+		}
+	}
+	return false
 }
 
 // Draw renders the visible portion of the virtual list into buf.

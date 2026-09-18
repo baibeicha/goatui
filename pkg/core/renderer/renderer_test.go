@@ -72,6 +72,16 @@ func TestRendererSparseUpdate(t *testing.T) {
 	}
 }
 
+func TestAppendCursorMoveUnknownX(t *testing.T) {
+	// When curX is -1 (unknown), appendCursorMove must emit absolute CUP (\x1b[1;2H)
+	// and NEVER relative move (\x1b[2C)
+	out := appendCursorMove(nil, -1, 0, 1, 0)
+	expected := "\x1b[1;2H"
+	if string(out) != expected {
+		t.Errorf("Expected %q when curX=-1, got %q", expected, string(out))
+	}
+}
+
 type noopWriter struct{}
 
 func (noopWriter) Write(p []byte) (int, error) {

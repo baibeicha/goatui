@@ -36,6 +36,19 @@ func NewInputModal(title, prompt, defaultValue string, onConfirm func(string) te
 	}
 }
 
+// SetPasswordMode enables or disables masked password input.
+func (i *InputModal) SetPasswordMode(enable bool) *InputModal {
+	i.input.SetPasswordMode(enable)
+	return i
+}
+
+// NewPasswordModal creates a modal dialog designed for secret/password entry.
+func NewPasswordModal(title, prompt string, onConfirm func(string) tea.Cmd, onCancel func() tea.Cmd) *InputModal {
+	m := NewInputModal(title, prompt, "", onConfirm, onCancel)
+	m.SetPasswordMode(true)
+	return m
+}
+
 func (i *InputModal) Bounds(area buffer.Rect) buffer.Rect {
 	w := max(50, buffer.StringWidth(i.prompt)+10)
 	w = min(w, area.Width-4)
@@ -67,6 +80,9 @@ func (i *InputModal) Update(msg tea.Msg) (Screen, tea.Cmd) {
 		default:
 			i.input.HandleKey(msg.Key)
 		}
+	case tea.PasteMsg:
+		i.input.InsertString(msg.Text)
+		return i, nil
 	}
 	return i, nil
 }

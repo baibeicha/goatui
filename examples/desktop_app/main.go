@@ -121,7 +121,7 @@ func (a *appScreen) renderChrome(f *tea.Frame, title string) goatui.Rect {
 
 	if area.Width >= 95 {
 		themeInfo := " Theme: " + curTheme.Name + " "
-		f.Buffer.SetString(authArea.X-len(themeInfo)-1, area.Y, themeInfo, p.Foreground, p.Secondary, 0)
+		f.Buffer.SetString(authArea.X-goatui.StringWidth(themeInfo)-1, area.Y, themeInfo, p.Foreground, p.Secondary, 0)
 	}
 
 	// 2. Navigation Bar (Top subheader) using interactive Tabs widget
@@ -151,7 +151,7 @@ func (a *appScreen) renderChrome(f *tea.Frame, title string) goatui.Rect {
 
 	if area.Width >= 88 {
 		routeInfo := fmt.Sprintf(" [Ctrl+K] Omnibar | Route: %s ", a.activeRoute)
-		f.Buffer.SetString(navArea.Right()-len(routeInfo)-1, navArea.Y, routeInfo, p.Muted, p.Background, 0)
+		f.Buffer.SetString(navArea.Right()-goatui.StringWidth(routeInfo)-1, navArea.Y, routeInfo, p.Muted, p.Background, 0)
 	}
 
 	// 3. Footer Bar

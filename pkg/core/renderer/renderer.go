@@ -45,7 +45,7 @@ func (r *Renderer) SetSynchronized(enabled bool) {
 func (r *Renderer) Resize(width, height int) {
 	r.front.Resize(width, height)
 	r.back.Resize(width, height)
-	
+
 	// Invalidate front buffer to force full redraw
 	for i := range r.front.Cells() {
 		r.front.Cells()[i] = cell.Cell{Rune: 0xFFFF}

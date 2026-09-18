@@ -136,4 +136,3 @@ func (w *ImageWidget) Draw(buf *buffer.Buffer, area buffer.Rect) {
 		RenderHalfBlock(buf, area, img, mode)
 	}
 }
-
