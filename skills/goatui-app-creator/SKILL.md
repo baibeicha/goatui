@@ -118,7 +118,7 @@ func (m model) View(f *goatui.Frame) {
 		AlignVertical(goatui.AlignMiddle)
 
 	content := fmt.Sprintf(
-		"🐐 Counter Value: %d\n\n[↑ / +] Increment\n[↓ / -] Decrement\n[Q / Esc] Quit",
+		"Goat Counter Value: %d\n\n[↑ / +] Increment\n[↓ / -] Decrement\n[Q / Esc] Quit",
 		m.counter,
 	)
 	cardStyle.Draw(f.Buffer, cardArea, content)

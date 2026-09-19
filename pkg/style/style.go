@@ -341,6 +341,9 @@ func (s Style) drawBorder(buf *buffer.Buffer, r buffer.Rect) {
 	b := s.border
 	fg := s.borderFg
 	bg := s.borderBg
+	if bg.IsDefault() && !s.bg.IsDefault() {
+		bg = s.bg
+	}
 
 	// Horizontal edges
 	for x := r.X + 1; x < r.Right()-1; x++ {

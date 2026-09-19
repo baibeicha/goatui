@@ -801,7 +801,7 @@ func (s *SettingsScreen) View(f *tea.Frame) {
 		case goatui.IconModeNerdFont:
 			f.Buffer.SetString(innerRight.X, innerRight.Y+6, "Style: \uF07B \uF15C \uF03E \uF008 \uF013 (Requires patched font)", p.Accent, goatui.DefaultColor(), 0)
 		case goatui.IconModeEmoji:
-			f.Buffer.SetString(innerRight.X, innerRight.Y+6, "Style: 📁 📄 🖼 🎬 ⚙ (Legacy emoji mode)", p.Warning, goatui.DefaultColor(), 0)
+			f.Buffer.SetString(innerRight.X, innerRight.Y+6, "Style: [DIR] [FILE] [IMG] [MEDIA] [CONFIG]", p.Warning, goatui.DefaultColor(), 0)
 		}
 
 		f.Buffer.SetString(innerRight.X, innerRight.Y+8, "Modal Overlays:", p.Primary, goatui.DefaultColor(), goatui.AttrBold)

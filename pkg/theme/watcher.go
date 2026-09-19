@@ -44,10 +44,11 @@ func Current() Theme {
 // NewThemeManager creates a new theme manager with default presets registered.
 func NewThemeManager() *ThemeManager {
 	tm := &ThemeManager{
-		current: GoatDark,
+		current: SynodicDark,
 		themes:  make(map[string]Theme),
 	}
 
+	tm.Register(SynodicDark)
 	tm.Register(GoatDark)
 	tm.Register(Dracula)
 	tm.Register(CatppuccinMocha)

@@ -188,7 +188,7 @@ func (m appModel) View(f *goatui.Frame) {
 		BorderForeground(goatui.ColorHex("#7D56F4")).
 		AlignCenter().
 		AlignMiddle()
-	headerStyle.Draw(f.Buffer, rows[0], "⚡ GoatUI: Next-Gen High-Performance TUI Framework (60 FPS / 0 Allocs)")
+	headerStyle.Draw(f.Buffer, rows[0], "[*] GoatUI: Next-Gen High-Performance TUI Framework (60 FPS / 0 Allocs)")
 
 	// 2. Main Body Split: Left Column (Sidebar, 35%), Right Column (Table, Flex)
 	bodyCols := goatui.SplitHorizontal(rows[1],

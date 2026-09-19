@@ -205,7 +205,7 @@ func (h *HTTPViewerScreen) View(f *tea.Frame) {
 	}
 
 	urlArea := buffer.NewRect(area.X+2, area.Y, max(0, area.Width-4), 1)
-	f.Buffer.SetStringAligned(urlArea, "🌐 URL: "+h.url, buffer.AlignLeft, p.Accent, p.Background, cell.AttrBold)
+	f.Buffer.SetStringAligned(urlArea, "[HTTP] URL: "+h.url, buffer.AlignLeft, p.Accent, p.Background, cell.AttrBold)
 
 	statusW := buffer.StringWidth(statusStr)
 	f.Buffer.SetString(area.X+2, area.Y+1, statusStr, statusColor, p.Background, cell.AttrBold)

@@ -107,6 +107,23 @@ var (
 		Borders: resolveBorder("normal"),
 	}
 
+	SynodicDark = Theme{
+		Name: "Synodic Dark",
+		Colors: ColorPalette{
+			Primary:    cell.ColorHex("#00E5FF"), // Electric Cyan / Brand
+			Secondary:  cell.ColorHex("#3B82F6"), // Electric Blue / Accent
+			Background: cell.ColorHex("#0F172A"), // Deep Slate / Dark Bg
+			Foreground: cell.ColorHex("#F8FAFC"), // Bright text
+			Success:    cell.ColorHex("#10B981"), // Emerald Green
+			Warning:    cell.ColorHex("#F59E0B"), // Amber
+			Danger:     cell.ColorHex("#F43F5E"), // Rose Red
+			Info:       cell.ColorHex("#06B6D4"), // Teal
+			Muted:      cell.ColorHex("#94A3B8"), // Slate gray
+			Accent:     cell.ColorHex("#00E5FF"), // Electric Cyan
+		},
+		Borders: resolveBorder("rounded"),
+	}
+
 	GoatDark = Theme{
 		Name: "Goat Dark",
 		Colors: ColorPalette{

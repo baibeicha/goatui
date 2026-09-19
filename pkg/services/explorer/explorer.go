@@ -50,25 +50,25 @@ type Entry struct {
 // Deprecated: Use GetIcon instead.
 func (e Entry) Icon() string {
 	if e.IsDir {
-		return "📁"
+		return "[DIR]"
 	}
 	switch strings.ToLower(e.Ext) {
 	case ".png", ".jpg", ".jpeg", ".webp", ".bmp", ".ico":
-		return "🖼️"
+		return "[IMG]"
 	case ".gif":
-		return "🎬"
+		return "[GIF]"
 	case ".go", ".ts", ".js", ".py", ".rs", ".c", ".cpp", ".h", ".java":
-		return "📄"
+		return "[SRC]"
 	case ".json", ".yaml", ".yml", ".toml", ".xml", ".ini", ".env":
-		return "⚙️"
+		return "[CFG]"
 	case ".md", ".txt", ".rst", ".doc", ".pdf":
-		return "📝"
+		return "[DOC]"
 	case ".zip", ".tar", ".gz", ".7z", ".rar":
-		return "📦"
+		return "[ZIP]"
 	case ".exe", ".dll", ".so", ".bin":
-		return "⚡"
+		return "[BIN]"
 	default:
-		return "📄"
+		return "[FILE]"
 	}
 }
 

@@ -485,19 +485,19 @@ func (o *Omnibar) View(f *tea.Frame) {
 	p := curTheme.Colors
 	bg := p.Background
 	if bg.IsDefault() {
-		bg = cell.Color256(234)
+		bg = cell.ColorHex("#0F172A")
 	}
 	borderFg := p.Primary
 	if borderFg.IsDefault() {
-		borderFg = cell.ColorHex("#7D56F4")
+		borderFg = cell.ColorHex("#00E5FF")
 	}
-	titleFg := p.Accent
+	titleFg := p.Primary
 	if titleFg.IsDefault() {
-		titleFg = cell.ColorHex("#00FFAA")
+		titleFg = cell.ColorHex("#00E5FF")
 	}
 	selBg := p.Secondary
 	if selBg.IsDefault() {
-		selBg = cell.Color256(236)
+		selBg = cell.ColorHex("#1E293B")
 	}
 	selFg := p.Foreground
 	if selFg.IsDefault() {
@@ -505,26 +505,40 @@ func (o *Omnibar) View(f *tea.Frame) {
 	}
 	itemFg := p.Foreground
 	if itemFg.IsDefault() {
-		itemFg = cell.ColorHex("#CCCCCC")
+		itemFg = cell.ColorHex("#F8FAFC")
 	}
 	descFg := p.Muted
 	if descFg.IsDefault() {
-		descFg = cell.ColorHex("#777799")
+		descFg = cell.ColorHex("#94A3B8")
 	}
 	matchFg := p.Warning
 	if matchFg.IsDefault() {
-		matchFg = cell.ColorHex("#FFD700")
+		matchFg = cell.ColorHex("#F59E0B")
 	}
 
 	// Fill boxArea completely with solid opaque background
 	for cy := boxArea.Y; cy < boxArea.Bottom(); cy++ {
+		if boxArea.X > 0 {
+			c := f.Buffer.Cell(boxArea.X-1, cy)
+			if c != nil && c.Width == 2 {
+				f.Buffer.Set(boxArea.X-1, cy, cell.Cell{
+					Rune:     ' ',
+					Width:    1,
+					Modifier: cell.AttrNone,
+					FgType:   cell.ColorDefault,
+					BgType:   c.BgType,
+					Bg:       c.Bg,
+				})
+			}
+		}
 		for cx := boxArea.X; cx < boxArea.Right(); cx++ {
 			f.Buffer.Set(cx, cy, cell.Cell{
 				Rune:     ' ',
 				Width:    1,
 				Modifier: cell.AttrNone,
-				FgType:   cell.ColorDefault,
+				FgType:   bg.Type,
 				BgType:   bg.Type,
+				Fg:       bg.Value,
 				Bg:       bg.Value,
 			})
 		}
@@ -534,6 +548,7 @@ func (o *Omnibar) View(f *tea.Frame) {
 	st := style.NewStyle().
 		Border(style.BorderRounded).
 		BorderForeground(borderFg).
+		BorderBackground(bg).
 		Background(bg)
 	st.Draw(f.Buffer, boxArea, "")
 
@@ -557,6 +572,8 @@ func (o *Omnibar) View(f *tea.Frame) {
 	}
 
 	// 1. Draw Search Input
+	o.input.SetPromptStyle(style.NewStyle().Bold(true).Foreground(borderFg))
+	o.input.SetTextStyle(style.NewStyle().Foreground(itemFg).Background(bg))
 	inputArea := buffer.NewRect(inner.X, inner.Y, inner.Width, 1)
 	o.input.Draw(f.Buffer, inputArea)
 
