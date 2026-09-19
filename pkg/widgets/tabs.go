@@ -72,6 +72,13 @@ func (t *Tabs) Active() int {
 	return t.activeIdx
 }
 
+// Bounds returns a copy of the calculated bounding rects for each tab.
+func (t *Tabs) Bounds() []buffer.Rect {
+	res := make([]buffer.Rect, len(t.tabBounds))
+	copy(res, t.tabBounds)
+	return res
+}
+
 // ActiveItem returns a pointer to the currently selected TabItem, or nil if empty.
 func (t *Tabs) ActiveItem() *TabItem {
 	if t.activeIdx >= 0 && t.activeIdx < len(t.items) {
