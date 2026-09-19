@@ -80,10 +80,11 @@ type (
 	AccessDeniedScreen = window.AccessDeniedScreen
 
 	// Theme Types
-	Theme        = theme.Theme
-	ColorPalette = theme.ColorPalette
-	BorderConfig = theme.BorderConfig
-	ThemeManager = theme.ThemeManager
+	Theme           = theme.Theme
+	ColorPalette    = theme.ColorPalette
+	BorderConfig    = theme.BorderConfig
+	ThemeManager    = theme.ThemeManager
+	ThemeChangedMsg = theme.ThemeChangedMsg
 
 	// Security Types
 	User            = security.User

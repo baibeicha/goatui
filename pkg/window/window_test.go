@@ -1,6 +1,7 @@
 package window
 
 import (
+	"fmt"
 	"strings"
 	"testing"
 
@@ -124,6 +125,86 @@ func TestOmnibarFiltering(t *testing.T) {
 
 	if len(ob.filtered) != 1 || ob.filtered[0].item.Route != "/dashboard" {
 		t.Errorf("Expected only /dashboard to match, got %+v", ob.filtered)
+	}
+}
+
+func TestOmnibarScrollingAndMouse(t *testing.T) {
+	ob := NewOmnibar()
+	actionExecuted := false
+	for i := 0; i < 20; i++ {
+		idx := i
+		ob.AddItem(OmniItem{
+			Title:       fmt.Sprintf("Item %d", idx),
+			Description: fmt.Sprintf("Desc %d", idx),
+			Action: func() tea.Cmd {
+				if idx == 2 {
+					actionExecuted = true
+				}
+				return nil
+			},
+		})
+	}
+	ob.Open()
+
+	area := buffer.NewRect(0, 0, 80, 24)
+	box := ob.Bounds(area)
+
+	// 1. Test KeyDown scrolling past initial maxVisible window
+	for i := 0; i < 10; i++ {
+		ob.Update(tea.KeyMsg{Key: input.Key{Type: input.KeyDown}})
+	}
+	if ob.selectedIndex != 10 {
+		t.Errorf("Expected selectedIndex 10, got %d", ob.selectedIndex)
+	}
+	if ob.scrollOffset == 0 {
+		t.Errorf("Expected scrollOffset > 0 after scrolling down, got %d", ob.scrollOffset)
+	}
+
+	// 2. Test Mouse wheel up/down
+	ob.HandleMouse(tea.MouseMsg{Mouse: input.Mouse{Button: input.MouseWheelUp}}, area)
+	if ob.selectedIndex != 9 {
+		t.Errorf("Expected selectedIndex 9 after wheel up, got %d", ob.selectedIndex)
+	}
+	ob.HandleMouse(tea.MouseMsg{Mouse: input.Mouse{Button: input.MouseWheelDown}}, area)
+	if ob.selectedIndex != 10 {
+		t.Errorf("Expected selectedIndex 10 after wheel down, got %d", ob.selectedIndex)
+	}
+
+	// 3. Test click on item to execute
+	ob.selectedIndex = 0
+	ob.scrollOffset = 0
+	// Items start at inner.Y + 2 = box.Y + 1 + 2 = box.Y + 3
+	item2Y := box.Y + 3 + 2
+	handled, cmd := ob.HandleMouse(tea.MouseMsg{
+		Mouse: input.Mouse{
+			X:      box.X + 10,
+			Y:      item2Y,
+			Button: input.MouseLeft,
+			Action: input.MousePress,
+		},
+	}, area)
+	if !handled || ob.IsVisible() {
+		t.Errorf("Expected click on item to handle and close omnibar")
+	}
+	if cmd != nil {
+		cmd()
+	}
+	if !actionExecuted {
+		t.Errorf("Expected action for Item 2 to be executed on mouse click")
+	}
+
+	// 4. Test click outside dismisses omnibar
+	ob.Open()
+	handled, _ = ob.HandleMouse(tea.MouseMsg{
+		Mouse: input.Mouse{
+			X:      box.X - 5,
+			Y:      box.Y - 5,
+			Button: input.MouseLeft,
+			Action: input.MousePress,
+		},
+	}, area)
+	if !handled || ob.IsVisible() {
+		t.Errorf("Expected outside click to dismiss omnibar")
 	}
 }
 

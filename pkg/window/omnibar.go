@@ -11,6 +11,7 @@ import (
 	"github.com/baibeicha/goatui/pkg/driver/input"
 	"github.com/baibeicha/goatui/pkg/style"
 	"github.com/baibeicha/goatui/pkg/tea"
+	"github.com/baibeicha/goatui/pkg/theme"
 	"github.com/baibeicha/goatui/pkg/widgets"
 )
 
@@ -42,6 +43,7 @@ type Omnibar struct {
 	items          []OmniItem
 	filtered       []filteredItem
 	selectedIndex  int
+	scrollOffset   int
 	visible        bool
 	currentAddress string
 	history        []string
@@ -98,6 +100,13 @@ func (o *Omnibar) IsVisible() bool {
 	return o.visible
 }
 
+// Items returns a copy of all registered OmniItems.
+func (o *Omnibar) Items() []OmniItem {
+	res := make([]OmniItem, len(o.items))
+	copy(res, o.items)
+	return res
+}
+
 // Open shows the Omnibar.
 func (o *Omnibar) Open() {
 	o.visible = true
@@ -109,6 +118,7 @@ func (o *Omnibar) Open() {
 	}
 	o.input.Focus()
 	o.selectedIndex = 0
+	o.scrollOffset = 0
 	o.filter()
 }
 
@@ -167,6 +177,7 @@ func (o *Omnibar) filter() {
 			o.filtered = append(o.filtered, filteredItem{item: it})
 		}
 		o.selectedIndex = 0
+		o.scrollOffset = 0
 		return
 	}
 
@@ -203,6 +214,20 @@ func (o *Omnibar) filter() {
 	if o.selectedIndex >= len(o.filtered) {
 		o.selectedIndex = max(0, len(o.filtered)-1)
 	}
+	o.scrollOffset = 0
+}
+
+func (o *Omnibar) calcMaxVisible(area buffer.Rect) int {
+	maxVisible := 8
+	if area.Height >= 30 {
+		maxVisible = 12
+	} else if area.Height < 20 {
+		maxVisible = 5
+	}
+	if area.Height > 0 && maxVisible > area.Height-6 {
+		maxVisible = max(1, area.Height-6)
+	}
+	return min(maxVisible, len(o.filtered))
 }
 
 // Update handles keyboard navigation and selection inside the Omnibar.
@@ -231,6 +256,9 @@ func (o *Omnibar) Update(msg tea.Msg) (bool, tea.Cmd) {
 			}
 			if o.selectedIndex > 0 {
 				o.selectedIndex--
+				if o.selectedIndex < o.scrollOffset {
+					o.scrollOffset = o.selectedIndex
+				}
 			}
 			return true, nil
 
@@ -248,6 +276,31 @@ func (o *Omnibar) Update(msg tea.Msg) (bool, tea.Cmd) {
 			}
 			if o.selectedIndex < len(o.filtered)-1 {
 				o.selectedIndex++
+				maxVis := 8
+				if o.selectedIndex >= o.scrollOffset+maxVis {
+					o.scrollOffset = o.selectedIndex - maxVis + 1
+				}
+			}
+			return true, nil
+
+		case input.KeyPgUp:
+			o.selectedIndex -= 5
+			if o.selectedIndex < 0 {
+				o.selectedIndex = 0
+			}
+			if o.selectedIndex < o.scrollOffset {
+				o.scrollOffset = o.selectedIndex
+			}
+			return true, nil
+
+		case input.KeyPgDown:
+			o.selectedIndex += 5
+			if o.selectedIndex >= len(o.filtered) {
+				o.selectedIndex = max(0, len(o.filtered)-1)
+			}
+			maxVis := 8
+			if o.selectedIndex >= o.scrollOffset+maxVis {
+				o.scrollOffset = o.selectedIndex - maxVis + 1
 			}
 			return true, nil
 
@@ -337,17 +390,80 @@ func (o *Omnibar) Update(msg tea.Msg) (bool, tea.Cmd) {
 	return false, nil
 }
 
+// HandleMouse processes mouse wheel scrolling, item clicking, and outside-click dismissal.
+func (o *Omnibar) HandleMouse(msg tea.MouseMsg, area buffer.Rect) (bool, tea.Cmd) {
+	if !o.visible {
+		return false, nil
+	}
+
+	boxArea := o.Bounds(area)
+
+	// Outside click closes omnibar
+	if msg.Action == input.MousePress && msg.Button == input.MouseLeft {
+		if !boxArea.Contains(msg.X, msg.Y) {
+			o.Close()
+			return true, nil
+		}
+	}
+
+	maxVisible := o.calcMaxVisible(area)
+
+	// Mouse wheel scrolling through items
+	if msg.Button == input.MouseWheelUp {
+		if o.selectedIndex > 0 {
+			o.selectedIndex--
+			if o.selectedIndex < o.scrollOffset {
+				o.scrollOffset = o.selectedIndex
+			}
+		}
+		return true, nil
+	}
+	if msg.Button == input.MouseWheelDown {
+		if o.selectedIndex < len(o.filtered)-1 {
+			o.selectedIndex++
+			if o.selectedIndex >= o.scrollOffset+maxVisible {
+				o.scrollOffset = o.selectedIndex - maxVisible + 1
+			}
+		}
+		return true, nil
+	}
+
+	// Left click on an item row selects and executes it
+	if msg.Action == input.MousePress && msg.Button == input.MouseLeft {
+		inner := boxArea.Inset(1, 1)
+		itemsStartY := inner.Y + 2
+		if msg.Y >= itemsStartY && msg.Y < itemsStartY+maxVisible {
+			rowIdx := msg.Y - itemsStartY
+			targetIdx := o.scrollOffset + rowIdx
+			if targetIdx >= 0 && targetIdx < len(o.filtered) {
+				o.selectedIndex = targetIdx
+				item := o.filtered[targetIdx].item
+				o.Close()
+				if item.Action != nil {
+					return true, item.Action()
+				}
+				if item.Route != "" {
+					return true, func() tea.Msg { return NavigateMsg{URL: item.Route} }
+				}
+				return true, nil
+			}
+		}
+	}
+
+	return false, nil
+}
+
 // Bounds calculates the centered bounding box of the Omnibar window.
 func (o *Omnibar) Bounds(area buffer.Rect) buffer.Rect {
-	w := min(68, area.Width-4)
-	maxVisibleItems := min(6, len(o.filtered))
-	h := 3 + maxVisibleItems
-	if maxVisibleItems > 0 {
+	w := min(72, area.Width-4)
+	visibleCount := o.calcMaxVisible(area)
+	h := 3 + visibleCount
+	if visibleCount > 0 {
 		h++ // divider
 	}
 
 	x := area.X + max(0, (area.Width-w)/2)
-	y := area.Y + 3
+	y := area.Y + max(1, (area.Height-h)/3)
 	return buffer.NewRect(x, y, w, h)
 }
 
@@ -363,10 +479,44 @@ func (o *Omnibar) View(f *tea.Frame) {
 	}
 
 	boxArea := o.Bounds(area)
-	maxVisibleItems := min(6, len(o.filtered))
+	maxVisible := o.calcMaxVisible(area)
+
+	curTheme := theme.Default().Current()
+	p := curTheme.Colors
+	bg := p.Background
+	if bg.IsDefault() {
+		bg = cell.Color256(234)
+	}
+	borderFg := p.Primary
+	if borderFg.IsDefault() {
+		borderFg = cell.ColorHex("#7D56F4")
+	}
+	titleFg := p.Accent
+	if titleFg.IsDefault() {
+		titleFg = cell.ColorHex("#00FFAA")
+	}
+	selBg := p.Secondary
+	if selBg.IsDefault() {
+		selBg = cell.Color256(236)
+	}
+	selFg := p.Foreground
+	if selFg.IsDefault() {
+		selFg = cell.ColorHex("#FFFFFF")
+	}
+	itemFg := p.Foreground
+	if itemFg.IsDefault() {
+		itemFg = cell.ColorHex("#CCCCCC")
+	}
+	descFg := p.Muted
+	if descFg.IsDefault() {
+		descFg = cell.ColorHex("#777799")
+	}
+	matchFg := p.Warning
+	if matchFg.IsDefault() {
+		matchFg = cell.ColorHex("#FFD700")
+	}
 
 	// Fill boxArea completely with solid opaque background
-	bg := cell.Color256(234)
 	for cy := boxArea.Y; cy < boxArea.Bottom(); cy++ {
 		for cx := boxArea.X; cx < boxArea.Right(); cx++ {
 			f.Buffer.Set(cx, cy, cell.Cell{
@@ -383,19 +533,22 @@ func (o *Omnibar) View(f *tea.Frame) {
 	// Draw outer box
 	st := style.NewStyle().
 		Border(style.BorderRounded).
-		BorderForeground(cell.ColorHex("#7D56F4")).
+		BorderForeground(borderFg).
 		Background(bg)
 	st.Draw(f.Buffer, boxArea, "")
 
-	// Display title with current address on the top border
+	// Display title with current address and item counter on top border
 	title := " Command Palette "
 	if o.currentAddress != "" {
 		title = fmt.Sprintf(" Address: %s ", o.currentAddress)
 	}
+	if len(o.filtered) > 0 {
+		title += fmt.Sprintf("[%d/%d] ", o.selectedIndex+1, len(o.filtered))
+	}
 	titleW := buffer.StringWidth(title)
 	if boxArea.Width > titleW+4 {
 		titleX := boxArea.X + 2
-		f.Buffer.SetString(titleX, boxArea.Y, title, cell.ColorHex("#00FFAA"), bg, cell.AttrBold)
+		f.Buffer.SetString(titleX, boxArea.Y, title, titleFg, bg, cell.AttrBold)
 	}
 
 	inner := boxArea.Inset(1, 1)
@@ -408,27 +561,42 @@ func (o *Omnibar) View(f *tea.Frame) {
 	o.input.Draw(f.Buffer, inputArea)
 
 	// 2. Divider if items exist
-	if maxVisibleItems > 0 {
+	if maxVisible > 0 {
 		sepY := inner.Y + 1
 		for cx := inner.X; cx < inner.Right(); cx++ {
-			f.Buffer.SetRune(cx, sepY, '─', cell.ColorHex("#444466"), cell.Color256(234), cell.AttrNone)
+			f.Buffer.SetRune(cx, sepY, '─', borderFg, bg, cell.AttrDim)
 		}
 
-		// 3. Draw filtered results
-		for i := 0; i < maxVisibleItems; i++ {
-			fItem := o.filtered[i]
+		// Ensure scroll offset bounds
+		if o.selectedIndex < o.scrollOffset {
+			o.scrollOffset = o.selectedIndex
+		}
+		if o.selectedIndex >= o.scrollOffset+maxVisible {
+			o.scrollOffset = max(0, o.selectedIndex-maxVisible+1)
+		}
+		if o.scrollOffset > max(0, len(o.filtered)-maxVisible) {
+			o.scrollOffset = max(0, len(o.filtered)-maxVisible)
+		}
+
+		// 3. Draw filtered results within visible window
+		for i := 0; i < maxVisible; i++ {
+			idx := o.scrollOffset + i
+			if idx >= len(o.filtered) {
+				break
+			}
+			fItem := o.filtered[idx]
 			item := fItem.item
 			itemY := sepY + 1 + i
-			isSelected := (i == o.selectedIndex)
+			isSelected := (idx == o.selectedIndex)
 
-			fg := cell.ColorHex("#CCCCCC")
-			bg := cell.Color256(234)
+			rowFg := itemFg
+			rowBg := bg
 			mod := cell.Modifier(0)
 			prefix := "  "
 
 			if isSelected {
-				fg = cell.ColorHex("#00FFAA")
-				bg = cell.Color256(236)
+				rowFg = selFg
+				rowBg = selBg
 				mod = cell.AttrBold
 				prefix = "> "
 			}
@@ -438,10 +606,10 @@ func (o *Omnibar) View(f *tea.Frame) {
 				f.Buffer.Set(cx, itemY, cell.Cell{
 					Rune:     ' ',
 					Width:    1,
-					FgType:   fg.Type,
-					BgType:   bg.Type,
-					Fg:       fg.Value,
-					Bg:       bg.Value,
+					FgType:   rowFg.Type,
+					BgType:   rowBg.Type,
+					Fg:       rowFg.Value,
+					Bg:       rowBg.Value,
 					Modifier: mod,
 				})
 			}
@@ -469,14 +637,14 @@ func (o *Omnibar) View(f *tea.Frame) {
 				}
 
 				rMod := mod
-				rFg := fg
+				rFg := rowFg
 				if isMatch {
 					rMod = cell.AttrBold
-					rFg = cell.ColorHex("#FFD700") // Highlight color
+					rFg = matchFg
 				}
 
 				w := buffer.RuneWidth(r)
-				f.Buffer.SetRune(cx, itemY, r, rFg, bg, rMod)
+				f.Buffer.SetRune(cx, itemY, r, rFg, rowBg, rMod)
 				cx += w
 			}
 			titleEnd := cx
@@ -486,7 +654,7 @@ func (o *Omnibar) View(f *tea.Frame) {
 				descW := buffer.StringWidth(item.Description)
 				descX := inner.Right() - descW - 1
 				if descX > titleEnd+2 {
-					f.Buffer.SetString(descX, itemY, item.Description, cell.ColorHex("#777799"), bg, cell.AttrNone)
+					f.Buffer.SetString(descX, itemY, item.Description, descFg, rowBg, cell.AttrNone)
 				}
 			}
 		}
