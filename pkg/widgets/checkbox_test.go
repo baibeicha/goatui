@@ -5,6 +5,7 @@ import (
 
 	"github.com/baibeicha/goatui/pkg/core/buffer"
 	"github.com/baibeicha/goatui/pkg/driver/input"
+	"github.com/baibeicha/goatui/pkg/tea"
 )
 
 func TestCheckboxGroup_NavigationAndToggle(t *testing.T) {
@@ -80,5 +81,76 @@ func TestStandaloneCheckbox(t *testing.T) {
 	cb.HandleKey(input.Key{Type: input.KeyEnter})
 	if !cb.IsChecked() {
 		t.Fatal("expected checked after Enter")
+	}
+
+	// Test styles
+	cb.SetStyle(CheckboxCircle)
+	if cb.styleType != CheckboxCircle {
+		t.Fatalf("expected style CheckboxCircle, got %d", cb.styleType)
+	}
+
+	// Test TriState cycling
+	cb.SetTriState(true)
+	cb.SetChecked(false)
+	cb.Cycle()
+	if !cb.IsChecked() {
+		t.Fatal("expected checked after first cycle")
+	}
+	cb.Cycle()
+	if cb.IsChecked() || !cb.IsIndeterminate() {
+		t.Fatal("expected indeterminate after second cycle")
+	}
+	cb.Cycle()
+	if cb.IsChecked() || cb.IsIndeterminate() {
+		t.Fatal("expected unchecked after third cycle")
+	}
+
+	// Test mouse click
+	buf := buffer.NewBuffer(20, 1)
+	area := buffer.NewRect(0, 0, 20, 1)
+	cb.Draw(buf, area)
+	clicked := cb.HandleMouse(tea.MouseMsg{Mouse: input.Mouse{
+		Action: input.MousePress,
+		Button: input.MouseLeft,
+		X:      2,
+		Y:      0,
+	}})
+	if !clicked {
+		t.Fatal("expected mouse click to be handled")
+	}
+	if !cb.IsChecked() {
+		t.Fatal("expected checkbox to be checked after click")
+	}
+}
+
+func TestCheckboxGroup_StylesAndOrientation(t *testing.T) {
+	items := []CheckboxItem{
+		{ID: "c1", Label: "Circle1", Checked: false},
+		{ID: "c2", Label: "Circle2", Checked: true, Indeterminate: true},
+	}
+	cg := NewCheckboxGroup(items...).
+		SetStyle(CheckboxCircleFilled).
+		SetOrientation(1). // Vertical
+		SetTriState(true)
+
+	if cg.Items()[1].Indeterminate != true {
+		t.Fatal("expected c2 to be indeterminate")
+	}
+
+	buf := buffer.NewBuffer(30, 10)
+	cg.Draw(buf, buffer.NewRect(0, 0, 30, 5))
+
+	// Mouse click on item 1 (Y=0)
+	clicked := cg.HandleMouse(tea.MouseMsg{Mouse: input.Mouse{
+		Action: input.MousePress,
+		Button: input.MouseLeft,
+		X:      2,
+		Y:      0,
+	}})
+	if !clicked {
+		t.Fatal("expected mouse click on item 0 to be handled")
+	}
+	if !cg.IsChecked("c1") {
+		t.Fatal("expected c1 to be checked after click")
 	}
 }

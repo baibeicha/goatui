@@ -129,6 +129,7 @@ func (p *Program) Run(ctx ...context.Context) (Model, error) {
 	p.frame = &Frame{
 		Buffer:  p.renderer.Back(),
 		Spatial: p.spatial,
+		Arena:   NewFrameArena(256, 4096),
 	}
 
 	// Listen for OS interrupt signals
@@ -237,6 +238,9 @@ func (p *Program) Run(ctx ...context.Context) (Model, error) {
 func (p *Program) renderFrame() {
 	p.renderer.Back().Reset()
 	p.spatial.Reset()
+	if p.frame.Arena != nil {
+		p.frame.Arena.Reset()
+	}
 
 	p.model.View(p.frame)
 

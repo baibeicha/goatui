@@ -15,6 +15,7 @@ import (
 	"github.com/baibeicha/goatui/pkg/style"
 	"github.com/baibeicha/goatui/pkg/tea"
 	"github.com/baibeicha/goatui/pkg/theme"
+	"github.com/baibeicha/goatui/pkg/ui"
 	"github.com/baibeicha/goatui/pkg/widgets"
 	"github.com/baibeicha/goatui/pkg/window"
 )
@@ -48,11 +49,44 @@ type (
 	Checkbox          = widgets.Checkbox
 	CheckboxGroup     = widgets.CheckboxGroup
 	CheckboxItem      = widgets.CheckboxItem
+	CheckboxStyle     = widgets.CheckboxStyle
+	RadioStyle        = widgets.RadioStyle
+	RadioButton       = widgets.RadioButton
+	RadioGroup        = widgets.RadioGroup
+	RadioItem         = widgets.RadioItem
+	Button            = widgets.Button
+	ButtonState       = widgets.ButtonState
+	ButtonVariant     = widgets.ButtonVariant
+	Divider           = widgets.Divider
+	Select            = widgets.Select
+	SelectItem        = widgets.SelectItem
+	Slider            = widgets.Slider
+	Histogram         = widgets.Histogram
+	HistogramBar      = widgets.HistogramBar
+	Spinner           = widgets.Spinner
+	SpinnerType       = widgets.SpinnerType
 	TextInput         = widgets.TextInput
 	EchoMode          = widgets.EchoMode
 	Gauge             = widgets.Gauge
 	Sparkline         = widgets.Sparkline
 	BrailleCanvas     = widgets.BrailleCanvas
+
+	// Declarative UI & Rich Text Types
+	Span         = ui.Span
+	Line         = ui.Line
+	View         = ui.View
+	ViewFunc     = ui.ViewFunc
+	LayoutItem   = ui.LayoutItem
+	Card         = ui.Card
+	StatCard     = ui.StatCard
+	Badge        = ui.Badge
+	KeyHints     = ui.KeyHints
+	KeyHint      = ui.KeyHint
+	ToastManager = ui.ToastManager
+	ToastItem    = ui.ToastItem
+	ToastLevel   = ui.ToastLevel
+	RenderStream = ui.RenderStream
+	FrameArena   = tea.FrameArena
 
 	// Router Types
 	Router       = router.Router
@@ -252,6 +286,51 @@ const (
 	EchoNormal   = widgets.EchoNormal
 	EchoPassword = widgets.EchoPassword
 	EchoNone     = widgets.EchoNone
+
+	// Checkbox Styles
+	CheckboxBrackets     = widgets.CheckboxBrackets
+	CheckboxBox          = widgets.CheckboxBox
+	CheckboxCircle       = widgets.CheckboxCircle
+	CheckboxCircleFilled = widgets.CheckboxCircleFilled
+	CheckboxCross        = widgets.CheckboxCross
+	CheckboxCheck        = widgets.CheckboxCheck
+	CheckboxDot          = widgets.CheckboxDot
+	CheckboxSwitch       = widgets.CheckboxSwitch
+	CheckboxToggle       = widgets.CheckboxToggle
+	CheckboxCustom       = widgets.CheckboxCustom
+
+	// Radio Styles
+	RadioCircle       = widgets.RadioCircle
+	RadioCircleFilled = widgets.RadioCircleFilled
+	RadioDot          = widgets.RadioDot
+	RadioBrackets     = widgets.RadioBrackets
+	RadioCustom       = widgets.RadioCustom
+
+	// Button States & Variants
+	ButtonNormal         = widgets.ButtonNormal
+	ButtonHover          = widgets.ButtonHover
+	ButtonPressed        = widgets.ButtonPressed
+	ButtonDisabled       = widgets.ButtonDisabled
+	ButtonVariantDefault = widgets.ButtonVariantDefault
+	ButtonVariantPrimary = widgets.ButtonVariantPrimary
+	ButtonVariantSuccess = widgets.ButtonVariantSuccess
+	ButtonVariantWarning = widgets.ButtonVariantWarning
+	ButtonVariantDanger  = widgets.ButtonVariantDanger
+	ButtonVariantGhost   = widgets.ButtonVariantGhost
+
+	// Spinner Types
+	SpinnerDots     = widgets.SpinnerDots
+	SpinnerLine     = widgets.SpinnerLine
+	SpinnerMiniDots = widgets.SpinnerMiniDots
+	SpinnerPulse    = widgets.SpinnerPulse
+	SpinnerArc      = widgets.SpinnerArc
+	SpinnerCircle   = widgets.SpinnerCircle
+
+	// Toast Levels
+	ToastInfo    = ui.ToastInfo
+	ToastSuccess = ui.ToastSuccess
+	ToastWarn    = ui.ToastWarn
+	ToastError   = ui.ToastError
 )
 
 // Global Constructors and Helpers
@@ -319,6 +398,47 @@ var (
 	NewSparkline               = widgets.NewSparkline
 	NewBrailleCanvas           = widgets.NewBrailleCanvas
 	RenderCellText             = widgets.RenderCellText
+	NewRadioButton             = widgets.NewRadioButton
+	NewRadioGroup              = widgets.NewRadioGroup
+	RadioMarkers               = widgets.RadioMarkers
+	CheckboxMarkers            = widgets.CheckboxMarkers
+	NewButton                  = widgets.NewButton
+	NewHorizontalDivider       = widgets.NewHorizontalDivider
+	NewVerticalDivider         = widgets.NewVerticalDivider
+	NewSelect                  = widgets.NewSelect
+	NewSlider                  = widgets.NewSlider
+	NewHistogram               = widgets.NewHistogram
+	NewSpinner                 = widgets.NewSpinner
+
+	// Declarative UI & Rich Text Constructors
+	NewSpan         = ui.NewSpan
+	Text            = ui.Text
+	Styled          = ui.Styled
+	Bold            = ui.Bold
+	Dim             = ui.Dim
+	Italic          = ui.Italic
+	ColorSpan       = ui.Color
+	ColoredSpan     = ui.Colored
+	BadgeSpan       = ui.BadgeSpan
+	NewLine         = ui.NewLine
+	LineFromText    = ui.LineFromText
+	VBox            = ui.VBox
+	HBox            = ui.HBox
+	UIFixed         = ui.Fixed
+	UIFlex          = ui.Flex
+	UIPercent       = ui.Percent
+	UIAuto          = ui.Auto
+	UISpacer        = ui.Spacer
+	UIPadding       = ui.Padding
+	UIPad           = ui.Pad
+	UICenter        = ui.Center
+	NewCard         = ui.NewCard
+	NewStatCard     = ui.NewStatCard
+	NewBadge        = ui.NewBadge
+	NewKeyHints     = ui.NewKeyHints
+	NewToastManager = ui.NewToastManager
+	NewRenderStream = ui.NewRenderStream
+	NewFrameArena   = tea.NewFrameArena
 
 	// Router Constructors & Helpers
 	NewRouter       = router.NewRouter
