@@ -359,6 +359,9 @@ func (wm *WindowManager) View(f *tea.Frame) {
 	active := wm.ActiveScreen()
 	if active != nil {
 		active.View(f)
+		if f.Buffer != nil {
+			f.Buffer.RenderOverlays()
+		}
 	}
 
 	// 2. Render Modal Overlay (with Backdrop Dimming)
@@ -382,6 +385,9 @@ func (wm *WindowManager) View(f *tea.Frame) {
 				Spatial: f.Spatial,
 			}
 			modal.View(modalFrame)
+			if f.Buffer != nil {
+				f.Buffer.RenderOverlays()
+			}
 		}
 	}
 
@@ -444,7 +450,7 @@ func (d *defaultNotFoundScreen) View(f *tea.Frame) {
 }
 
 func (d *defaultNotFoundScreen) Update(msg tea.Msg) (Screen, tea.Cmd) {
-	if key, ok := msg.(tea.KeyMsg); ok && key.Key.Type == 2 { // Esc
+	if key, ok := msg.(tea.KeyMsg); ok && key.Key.Type == input.KeyEsc {
 		return d, func() tea.Msg { return PopMsg{} }
 	}
 	return d, nil

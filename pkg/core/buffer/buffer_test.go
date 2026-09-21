@@ -196,6 +196,57 @@ func TestBufferDrawAlignedText(t *testing.T) {
 	}
 }
 
+func TestBufferOverlays(t *testing.T) {
+	buf := NewBuffer(20, 5)
+
+	if buf.HasOverlays() {
+		t.Fatal("expected no overlays initially")
+	}
+
+	// Normal render writes 'A' at (2, 2)
+	buf.SetRune(2, 2, 'A', cell.DefaultColor(), cell.DefaultColor(), cell.AttrNone)
+
+	// An overlay is registered to write 'B' at (2, 2)
+	buf.AddOverlay(func(b *Buffer) {
+		b.SetRune(2, 2, 'B', cell.DefaultColor(), cell.DefaultColor(), cell.AttrBold)
+	})
+
+	if !buf.HasOverlays() {
+		t.Fatal("expected pending overlays")
+	}
+
+	// Before rendering overlays, cell is still 'A'
+	if buf.Cell(2, 2).Rune != 'A' {
+		t.Fatalf("expected 'A' before overlay render, got %c", buf.Cell(2, 2).Rune)
+	}
+
+	// Clip buffer to (0, 0, 1, 1) - overlay should bypass clip and restore it
+	buf.SetClip(NewRect(0, 0, 1, 1))
+
+	buf.RenderOverlays()
+
+	if buf.HasOverlays() {
+		t.Fatal("expected no pending overlays after render")
+	}
+
+	// After rendering overlays, cell is 'B'
+	if buf.Cell(2, 2).Rune != 'B' {
+		t.Fatalf("expected 'B' after overlay render, got %c", buf.Cell(2, 2).Rune)
+	}
+
+	// Clip rect should be restored
+	if buf.ClipRect() == nil || *buf.ClipRect() != NewRect(0, 0, 1, 1) {
+		t.Fatal("expected clip rect restored after overlay render")
+	}
+
+	// Reset clears overlays
+	buf.AddOverlay(func(b *Buffer) {})
+	buf.Reset()
+	if buf.HasOverlays() {
+		t.Fatal("expected Reset to clear overlays")
+	}
+}
+
 func BenchmarkBufferSetString(b *testing.B) {
 	buf := NewBuffer(120, 40)
 	text := "The quick brown fox jumps over the lazy dog."

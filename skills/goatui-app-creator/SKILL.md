@@ -295,6 +295,78 @@ canvas.SetPixel(40, 20)
 canvas.Draw(f.Buffer, canvasArea)
 ```
 
+### 6. Select / Dropdown (Overlay Popups)
+Select renders a single-choice dropdown that opens a floating popup menu using GoatUI's overlay rendering pass (`buf.AddOverlay`), ensuring dropdown items are never clipped by container boundaries and never overwritten by subsequent sibling widgets:
+
+```go
+selector := goatui.NewSelect("env", "Active Environment",
+    goatui.SelectItem{ID: "prod", Label: "Production Cluster"},
+    goatui.SelectItem{ID: "stage", Label: "Staging Sandbox"},
+    goatui.SelectItem{ID: "local", Label: "Local Simulation"},
+)
+
+// In Update:
+selector.HandleKey(keyMsg.Key)
+selector.HandleMouse(mouseMsg)
+
+// In View:
+selector.Draw(f.Buffer, selectArea)
+```
+
+### 7. Declarative Input Validation & FormField (`pkg/validation` & `ui.FormField`)
+GoatUI provides a declarative, reactive validation engine with built-in rules, automatic visual error feedback, and Form integration:
+
+```go
+// 1. Direct TextInput validation:
+input := goatui.NewTextInput()
+input.AddValidation(
+    goatui.RuleRequired("Username is required"),
+    goatui.RuleMinLength(3, "Must be at least 3 characters"),
+    goatui.RuleAlphanumeric("Must contain only letters and digits"),
+)
+input.SetValidateOnChange(true) // Re-validate on every keystroke
+
+// 2. Declarative FormField combining Label, Input, and Error:
+field := goatui.NewFormField("Email Address", input).
+    SetRequired(true).
+    SetHelperText("We will never share your email.")
+field.AddValidation(
+    goatui.RuleRequired(),
+    goatui.RuleEmail(),
+)
+
+// In Update:
+field.HandleKey(keyMsg.Key)
+field.HandleMouse(mouseMsg, fieldArea)
+
+// In View:
+field.Draw(f.Buffer, fieldArea)
+
+// 3. Multi-field Form validation:
+form := goatui.NewForm().
+    Field("username", goatui.RuleRequired(), goatui.RuleMinLength(3)).
+    Field("email", goatui.RuleRequired(), goatui.RuleEmail()).
+    Field("age", goatui.RuleOptional(goatui.RuleIntRange(18, 120)))
+
+res := form.Validate(map[string]string{
+    "username": "alice",
+    "email": "invalid-email",
+})
+if !res.IsValid() {
+    fmt.Println("Error:", res.Error("email"))
+}
+```
+**Built-in Validation Rules**:
+- `goatui.RuleRequired(msg...)`
+- `goatui.RuleMinLength(min, msg...)` / `goatui.RuleMaxLength(max, msg...)`
+- `goatui.RuleLengthRange(min, max, msg...)`
+- `goatui.RuleIntRange(min, max, msg...)` / `goatui.RuleFloatRange(min, max, msg...)`
+- `goatui.RuleRegex(pattern, msg...)`
+- `goatui.RuleEmail(msg...)` / `goatui.RuleURL(msg...)`
+- `goatui.RuleNumeric(msg...)` / `goatui.RuleAlpha(msg...)` / `goatui.RuleAlphanumeric(msg...)`
+- `goatui.RuleCustom(fn)`
+- `goatui.RuleOptional(rule)`
+
 ---
 
 ## Desktop-Grade Architecture: WindowManager, Router & Omnibar

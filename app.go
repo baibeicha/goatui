@@ -3,6 +3,8 @@ package goatui
 import (
 	"context"
 	"fmt"
+	"sort"
+	"strings"
 	"time"
 
 	"github.com/baibeicha/goatui/pkg/core/buffer"
@@ -18,12 +20,13 @@ type appTickMsg time.Time
 
 // AppTab represents an individual navigation tab in the App scaffold.
 type AppTab struct {
-	ID      string
-	Title   string
-	View    func(f *tea.Frame, area buffer.Rect)
-	Screen  window.Screen
-	OnKey   func(key input.Key) bool
-	OnMouse func(msg tea.MouseMsg) bool
+	ID           string
+	Title        string
+	View         func(f *tea.Frame, area buffer.Rect)
+	Screen       window.Screen
+	OnKey        func(key input.Key) bool
+	OnMouse      func(msg tea.MouseMsg) bool
+	interceptTab bool
 }
 
 // SetOnKey sets a keyboard handler for this tab.
@@ -38,6 +41,18 @@ func (t *AppTab) SetOnMouse(fn func(msg tea.MouseMsg) bool) *AppTab {
 	return t
 }
 
+// SetInterceptTab configures whether this tab intercepts Tab/Shift+Tab keys.
+// By default false, allowing App to cycle tabs via Tab / Shift+Tab.
+func (t *AppTab) SetInterceptTab(intercept bool) *AppTab {
+	t.interceptTab = intercept
+	return t
+}
+
+// InterceptTab returns whether this tab intercepts Tab navigation keys.
+func (t *AppTab) InterceptTab() bool {
+	return t.interceptTab
+}
+
 // App provides an out-of-the-box, batteries-included scaffold for terminal applications.
 // It bundles tabs, hotkey/mouse routing, modal dialogs, statusbar, and floating toasts.
 type App struct {
@@ -47,6 +62,7 @@ type App struct {
 	tabBounds     []buffer.Rect
 	toasts        *ui.ToastManager
 	modal         window.Modal
+	isHelpOpen    bool
 	statusLeft    string
 	statusRight   string
 	keyHints      *ui.KeyHints
@@ -209,6 +225,59 @@ func (a *App) CustomModal(m window.Modal) {
 // CloseModal dismisses the active modal dialog.
 func (a *App) CloseModal() {
 	a.modal = nil
+	a.isHelpOpen = false
+}
+
+// ShowHelp displays a help dialog listing navigation keys, key hints, and hotkeys.
+func (a *App) ShowHelp() {
+	var lines []string
+	lines = append(lines, "NAVIGATION:")
+	lines = append(lines, "  [Tab] / [Shift+Tab]   Cycle through tabs")
+	if len(a.tabs) > 0 {
+		lines = append(lines, fmt.Sprintf("  [1]..[%d]              Switch directly to tab", min(9, len(a.tabs))))
+	}
+	lines = append(lines, "  [Ctrl+Tab]            Cycle forward through tabs")
+
+	if a.keyHints != nil && len(a.keyHints.Hints()) > 0 {
+		lines = append(lines, "")
+		lines = append(lines, "KEY SHORTCUTS:")
+		for _, kh := range a.keyHints.Hints() {
+			lines = append(lines, fmt.Sprintf("  [%-16s] %s", kh.Key, kh.Desc))
+		}
+	} else if len(a.hotkeys) > 0 {
+		lines = append(lines, "")
+		lines = append(lines, "HOTKEYS:")
+		var runes []rune
+		for r := range a.hotkeys {
+			runes = append(runes, r)
+		}
+		sort.Slice(runes, func(i, j int) bool { return runes[i] < runes[j] })
+		for _, r := range runes {
+			lines = append(lines, fmt.Sprintf("  [%c]                  Trigger action", r))
+		}
+	}
+
+	lines = append(lines, "")
+	lines = append(lines, "SYSTEM:")
+	lines = append(lines, "  [?] / [F1]            Toggle this help dialog")
+	lines = append(lines, "  [Esc] / [Enter]       Dismiss dialog")
+	lines = append(lines, "  [Ctrl+Q]              Quit application")
+
+	message := strings.Join(lines, "\n")
+	a.isHelpOpen = true
+	a.modal = window.AlertModal("KEYBOARD SHORTCUTS & HELP", message, func() tea.Cmd {
+		a.isHelpOpen = false
+		return nil
+	})
+}
+
+// ToggleHelp toggles the display of the keyboard shortcuts help dialog.
+func (a *App) ToggleHelp() {
+	if a.isHelpOpen && a.modal != nil {
+		a.CloseModal()
+		return
+	}
+	a.ShowHelp()
 }
 
 // SetStatus sets left and right statusbar messages.
@@ -268,6 +337,14 @@ func (a *App) SetTabOnMouse(id string, fn func(msg tea.MouseMsg) bool) *App {
 	return a
 }
 
+// SetTabInterceptTab configures whether the tab with the given ID intercepts Tab keys.
+func (a *App) SetTabInterceptTab(id string, intercept bool) *App {
+	if t := a.Tab(id); t != nil {
+		t.SetInterceptTab(intercept)
+	}
+	return a
+}
+
 // Quit terminates the application.
 func (a *App) Quit() {
 	if a.program != nil {
@@ -293,15 +370,23 @@ func (a *App) Update(msg tea.Msg) (tea.Model, tea.Cmd) {
 
 	case window.CloseModalMsg:
 		a.modal = nil
+		a.isHelpOpen = false
 		return a, nil
 
 	case window.ShowModalMsg:
 		a.modal = msg.Modal
+		a.isHelpOpen = false
 		return a, nil
 	}
 
 	// Modal handles events first
 	if a.modal != nil {
+		if km, ok := msg.(tea.KeyMsg); ok {
+			if a.isHelpOpen && (km.Key.Type == input.KeyEsc || (km.Key.Type == input.KeyRune && (km.Key.Rune == '?' || km.Key.Rune == 'q'))) {
+				a.CloseModal()
+				return a, nil
+			}
+		}
 		var cmd tea.Cmd
 		var scr window.Screen
 		scr, cmd = a.modal.Update(msg)
@@ -313,13 +398,13 @@ func (a *App) Update(msg tea.Msg) (tea.Model, tea.Cmd) {
 
 	// Keyboard handling
 	if km, ok := msg.(tea.KeyMsg); ok {
-		// Default Ctrl+Q quit
-		if km.Key.Type == input.KeyRune && km.Key.HasCtrl() && km.Key.Rune == 'q' {
+		// Default Ctrl+Q or Ctrl+C quit
+		if km.Key.Type == input.KeyRune && km.Key.HasCtrl() && (km.Key.Rune == 'q' || km.Key.Rune == 'c') {
 			a.Quit()
 			return a, tea.Quit
 		}
 
-		// Tab cycling: Ctrl+Tab advances, Ctrl+Shift+Tab or Ctrl+Backtab goes back
+		// Tab cycling with Ctrl modifier: Ctrl+Tab advances, Ctrl+Shift+Tab or Ctrl+Backtab goes back
 		if (km.Key.Type == input.KeyTab || km.Key.Type == input.KeyBacktab) && km.Key.Mod.Has(input.ModCtrl) {
 			if len(a.tabs) > 0 {
 				if km.Key.Type == input.KeyBacktab || km.Key.Mod.Has(input.ModShift) {
@@ -331,9 +416,54 @@ func (a *App) Update(msg tea.Msg) (tea.Model, tea.Cmd) {
 			return a, nil
 		}
 
+		// Direct tab navigation via Alt+1..Alt+9
+		if km.Key.Type == input.KeyRune && km.Key.Mod.Has(input.ModAlt) && km.Key.Rune >= '1' && km.Key.Rune <= '9' {
+			idx := int(km.Key.Rune - '1')
+			if idx < len(a.tabs) {
+				a.activeTabIdx = idx
+			}
+			return a, nil
+		}
+
+		// Check if active tab intercepts Tab keys
+		var activeTab *AppTab
+		if a.activeTabIdx >= 0 && a.activeTabIdx < len(a.tabs) {
+			activeTab = a.tabs[a.activeTabIdx]
+		}
+		tabInterceptsTab := activeTab != nil && activeTab.interceptTab
+
+		// Plain Tab cycling: Tab advances, Shift+Tab or Backtab goes back (unless tab intercepts Tab)
+		if (km.Key.Type == input.KeyTab || km.Key.Type == input.KeyBacktab) && !tabInterceptsTab {
+			if len(a.tabs) > 0 {
+				if km.Key.Type == input.KeyBacktab || km.Key.Mod.Has(input.ModShift) {
+					a.activeTabIdx = (a.activeTabIdx - 1 + len(a.tabs)) % len(a.tabs)
+				} else {
+					a.activeTabIdx = (a.activeTabIdx + 1) % len(a.tabs)
+				}
+			}
+			return a, nil
+		}
+
+		// Active tab key handler is given opportunity to consume keys (e.g. text input, hotkeys)
+		if activeTab != nil && activeTab.OnKey != nil && activeTab.OnKey(km.Key) {
+			return a, nil
+		}
+
 		// Registered special keys
 		if fn, ok := a.specialKeys[km.Key.Type]; ok {
 			fn()
+			return a, nil
+		}
+
+		// Plain Tab cycling fallback if intercepting tab did not consume Tab
+		if km.Key.Type == input.KeyTab || km.Key.Type == input.KeyBacktab {
+			if len(a.tabs) > 0 {
+				if km.Key.Type == input.KeyBacktab || km.Key.Mod.Has(input.ModShift) {
+					a.activeTabIdx = (a.activeTabIdx - 1 + len(a.tabs)) % len(a.tabs)
+				} else {
+					a.activeTabIdx = (a.activeTabIdx + 1) % len(a.tabs)
+				}
+			}
 			return a, nil
 		}
 
@@ -345,17 +475,26 @@ func (a *App) Update(msg tea.Msg) (tea.Model, tea.Cmd) {
 			}
 		}
 
-		// Active tab key handler
-		if a.activeTabIdx >= 0 && a.activeTabIdx < len(a.tabs) {
-			tab := a.tabs[a.activeTabIdx]
-			if tab.OnKey != nil && tab.OnKey(km.Key) {
+		// Tab switching via plain numeric keys 1..9
+		if km.Key.Type == input.KeyRune && !km.Key.HasCtrl() && !km.Key.HasAlt() && km.Key.Rune >= '1' && km.Key.Rune <= '9' {
+			idx := int(km.Key.Rune - '1')
+			if idx < len(a.tabs) {
+				a.activeTabIdx = idx
 				return a, nil
 			}
-			if tab.Screen != nil {
-				var cmd tea.Cmd
-				tab.Screen, cmd = tab.Screen.Update(msg)
-				return a, cmd
-			}
+		}
+
+		// Help toggle via '?' or F1
+		if (km.Key.Type == input.KeyRune && km.Key.Rune == '?' && !km.Key.HasCtrl() && !km.Key.HasAlt()) || km.Key.Type == input.KeyF1 {
+			a.ToggleHelp()
+			return a, nil
+		}
+
+		// Tab screen fallback
+		if activeTab != nil && activeTab.Screen != nil {
+			var cmd tea.Cmd
+			activeTab.Screen, cmd = activeTab.Screen.Update(msg)
+			return a, cmd
 		}
 	}
 
@@ -486,6 +625,9 @@ func (a *App) View(f *tea.Frame) {
 			tab.Screen.View(f)
 		}
 	}
+
+	// 3.5 Render Buffer Overlays (popups, dropdowns) before modal dialogs and toasts
+	buf.RenderOverlays()
 
 	// 4. Modal Dialog Overlay
 	if a.modal != nil {

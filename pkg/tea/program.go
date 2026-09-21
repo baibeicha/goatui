@@ -243,6 +243,9 @@ func (p *Program) renderFrame() {
 	}
 
 	p.model.View(p.frame)
+	if p.frame.Buffer != nil {
+		p.frame.Buffer.RenderOverlays()
+	}
 
 	_ = p.renderer.Render(p.driver.Writer())
 	_ = p.driver.Flush()

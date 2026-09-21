@@ -394,3 +394,70 @@ func TestModalPasteTrapAndOmnibarPaste(t *testing.T) {
 		t.Errorf("Pasted text leaked to background screen behind Omnibar: %q", bgScreen.receivedPaste)
 	}
 }
+
+func TestModal_MouseClicks(t *testing.T) {
+	buf := buffer.NewBuffer(80, 24)
+	f := &tea.Frame{Buffer: buf}
+
+	// 1. AlertModal mouse click outside button does not dismiss
+	dismissed := false
+	alert := AlertModal("Notice", "Message", func() tea.Cmd {
+		dismissed = true
+		return nil
+	})
+	alert.View(f)
+
+	// Click at (0, 0) - outside OK button
+	alert.Update(tea.MouseMsg{Mouse: input.Mouse{Action: input.MousePress, Button: input.MouseLeft, X: 0, Y: 0}})
+	if dismissed {
+		t.Fatal("AlertModal should not be dismissed by click outside OK button")
+	}
+
+	// Click on OK button
+	alertImpl := alert.(*alertModalImpl)
+	btn := alertImpl.btnBounds
+	alert.Update(tea.MouseMsg{Mouse: input.Mouse{Action: input.MousePress, Button: input.MouseLeft, X: btn.X + 1, Y: btn.Y}})
+	if !dismissed {
+		t.Fatal("AlertModal should be dismissed by click on OK button")
+	}
+
+	// 2. ConfirmModal mouse clicks
+	confirmed := false
+	cancelled := false
+	confirm := ConfirmModal("Title", "Are you sure?", func() tea.Cmd {
+		confirmed = true
+		return nil
+	}, func() tea.Cmd {
+		cancelled = true
+		return nil
+	})
+	confirm.View(f)
+	confirmImpl := confirm.(*confirmModalImpl)
+
+	// Click outside both buttons
+	confirm.Update(tea.MouseMsg{Mouse: input.Mouse{Action: input.MousePress, Button: input.MouseLeft, X: 0, Y: 0}})
+	if confirmed || cancelled {
+		t.Fatal("ConfirmModal should not trigger on click outside buttons")
+	}
+
+	// Click Confirm button
+	cBtn := confirmImpl.confirmBtnArea
+	confirm.Update(tea.MouseMsg{Mouse: input.Mouse{Action: input.MousePress, Button: input.MouseLeft, X: cBtn.X + 1, Y: cBtn.Y}})
+	if !confirmed {
+		t.Fatal("ConfirmModal should trigger onConfirm when clicking confirm button")
+	}
+
+	// Click Cancel button on fresh modal
+	cancelled2 := false
+	confirm2 := ConfirmModal("Title", "Are you sure?", nil, func() tea.Cmd {
+		cancelled2 = true
+		return nil
+	})
+	confirm2.View(f)
+	confirm2Impl := confirm2.(*confirmModalImpl)
+	cancelBtn := confirm2Impl.cancelBtnArea
+	confirm2.Update(tea.MouseMsg{Mouse: input.Mouse{Action: input.MousePress, Button: input.MouseLeft, X: cancelBtn.X + 1, Y: cancelBtn.Y}})
+	if !cancelled2 {
+		t.Fatal("ConfirmModal should trigger onCancel when clicking cancel button")
+	}
+}

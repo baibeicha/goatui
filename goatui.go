@@ -16,6 +16,7 @@ import (
 	"github.com/baibeicha/goatui/pkg/tea"
 	"github.com/baibeicha/goatui/pkg/theme"
 	"github.com/baibeicha/goatui/pkg/ui"
+	"github.com/baibeicha/goatui/pkg/validation"
 	"github.com/baibeicha/goatui/pkg/widgets"
 	"github.com/baibeicha/goatui/pkg/window"
 )
@@ -87,6 +88,14 @@ type (
 	ToastLevel   = ui.ToastLevel
 	RenderStream = ui.RenderStream
 	FrameArena   = tea.FrameArena
+
+	// Validation Types
+	ValidationResult = validation.Result
+	ValidationRule   = validation.Rule
+	Validator        = validation.Validator
+	FormValidator    = validation.Form
+	FormResult       = validation.FormResult
+	FormField        = ui.FormField
 
 	// Router Types
 	Router       = router.Router
@@ -439,6 +448,27 @@ var (
 	NewToastManager = ui.NewToastManager
 	NewRenderStream = ui.NewRenderStream
 	NewFrameArena   = tea.NewFrameArena
+
+	// Validation Constructors & Builtin Rules
+	NewValidator     = validation.New
+	NewForm          = validation.NewForm
+	NewFormField     = ui.NewFormField
+	ValidationOK     = validation.OK
+	ValidationFail   = validation.Fail
+	RuleRequired     = validation.Required
+	RuleMinLength    = validation.MinLength
+	RuleMaxLength    = validation.MaxLength
+	RuleLengthRange  = validation.LengthRange
+	RuleIntRange     = validation.IntRange
+	RuleFloatRange   = validation.FloatRange
+	RuleRegex        = validation.Regex
+	RuleEmail        = validation.Email
+	RuleURL          = validation.URL
+	RuleNumeric      = validation.Numeric
+	RuleAlpha        = validation.Alpha
+	RuleAlphanumeric = validation.Alphanumeric
+	RuleCustom       = validation.Custom
+	RuleOptional     = validation.Optional
 
 	// Router Constructors & Helpers
 	NewRouter       = router.NewRouter

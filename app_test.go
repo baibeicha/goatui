@@ -6,6 +6,7 @@ import (
 	"github.com/baibeicha/goatui/pkg/core/buffer"
 	"github.com/baibeicha/goatui/pkg/driver/input"
 	"github.com/baibeicha/goatui/pkg/tea"
+	"github.com/baibeicha/goatui/pkg/ui"
 )
 
 func TestApp_TabsAndNavigation(t *testing.T) {
@@ -158,3 +159,119 @@ func TestApp_HotkeysAndMouse(t *testing.T) {
 	smallFrame := &tea.Frame{Buffer: smallBuf}
 	app.View(smallFrame) // Should render without panic
 }
+
+func TestApp_TabCyclingAndNumericKeys(t *testing.T) {
+	app := NewApp("NavigationTest")
+	app.AddTab("t1", "First", nil)
+	app.AddTab("t2", "Second", nil)
+	app.AddTab("t3", "Third", nil)
+
+	if app.ActiveTab() != "t1" {
+		t.Fatalf("expected initial tab t1, got %s", app.ActiveTab())
+	}
+
+	// 1. Plain Tab cycles forward
+	app.Update(tea.KeyMsg{Key: input.Key{Type: input.KeyTab}})
+	if app.ActiveTab() != "t2" {
+		t.Fatalf("expected tab t2 after Tab, got %s", app.ActiveTab())
+	}
+	app.Update(tea.KeyMsg{Key: input.Key{Type: input.KeyTab}})
+	if app.ActiveTab() != "t3" {
+		t.Fatalf("expected tab t3 after second Tab, got %s", app.ActiveTab())
+	}
+	app.Update(tea.KeyMsg{Key: input.Key{Type: input.KeyTab}})
+	if app.ActiveTab() != "t1" {
+		t.Fatalf("expected tab t1 wrap around after third Tab, got %s", app.ActiveTab())
+	}
+
+	// 2. Shift+Tab and Backtab cycle backward
+	app.Update(tea.KeyMsg{Key: input.Key{Type: input.KeyTab, Mod: input.ModShift}})
+	if app.ActiveTab() != "t3" {
+		t.Fatalf("expected tab t3 after Shift+Tab, got %s", app.ActiveTab())
+	}
+	app.Update(tea.KeyMsg{Key: input.Key{Type: input.KeyBacktab}})
+	if app.ActiveTab() != "t2" {
+		t.Fatalf("expected tab t2 after Backtab, got %s", app.ActiveTab())
+	}
+
+	// 3. Digits '1'..'9' jump directly to tabs
+	app.Update(tea.KeyMsg{Key: input.Key{Type: input.KeyRune, Rune: '1'}})
+	if app.ActiveTab() != "t1" {
+		t.Fatalf("expected tab t1 after key '1', got %s", app.ActiveTab())
+	}
+	app.Update(tea.KeyMsg{Key: input.Key{Type: input.KeyRune, Rune: '3'}})
+	if app.ActiveTab() != "t3" {
+		t.Fatalf("expected tab t3 after key '3', got %s", app.ActiveTab())
+	}
+
+	// Out of range digit should not change tab
+	app.Update(tea.KeyMsg{Key: input.Key{Type: input.KeyRune, Rune: '9'}})
+	if app.ActiveTab() != "t3" {
+		t.Fatalf("expected tab t3 unchanged after key '9', got %s", app.ActiveTab())
+	}
+
+	// 4. Alt+1..9 navigation
+	app.Update(tea.KeyMsg{Key: input.Key{Type: input.KeyRune, Rune: '2', Mod: input.ModAlt}})
+	if app.ActiveTab() != "t2" {
+		t.Fatalf("expected tab t2 after Alt+2, got %s", app.ActiveTab())
+	}
+
+	// 5. Active tab with SetTabInterceptTab(true) can consume Tab
+	consumed := false
+	app.SetTabInterceptTab("t2", true)
+	app.SetTabOnKey("t2", func(key input.Key) bool {
+		if key.Type == input.KeyTab {
+			consumed = true
+			return true
+		}
+		return false
+	})
+	app.Update(tea.KeyMsg{Key: input.Key{Type: input.KeyTab}})
+	if !consumed {
+		t.Fatal("expected active tab key handler to consume Tab")
+	}
+	if app.ActiveTab() != "t2" {
+		t.Fatalf("expected active tab to remain t2 when Tab consumed, got %s", app.ActiveTab())
+	}
+
+	// 6. Active tab without SetTabInterceptTab cannot intercept Tab
+	app.SetTabInterceptTab("t2", false)
+	app.Update(tea.KeyMsg{Key: input.Key{Type: input.KeyTab}})
+	if app.ActiveTab() != "t3" {
+		t.Fatalf("expected Tab to switch to t3 when interceptTab is false, got %s", app.ActiveTab())
+	}
+}
+
+func TestApp_HelpDialog(t *testing.T) {
+	app := NewApp("HelpTest")
+	app.AddTab("main", "Main", nil)
+	app.SetKeyHints(
+		ui.KeyHint{Key: "Tab", Desc: "Switch Tab"},
+		ui.KeyHint{Key: "F", Desc: "Flatten"},
+	)
+
+	// Press '?' to toggle help
+	app.Update(tea.KeyMsg{Key: input.Key{Type: input.KeyRune, Rune: '?'}})
+	if app.modal == nil || !app.isHelpOpen {
+		t.Fatal("expected help modal to be open after pressing '?'")
+	}
+
+	// Press '?' again to toggle off
+	app.Update(tea.KeyMsg{Key: input.Key{Type: input.KeyRune, Rune: '?'}})
+	if app.modal != nil || app.isHelpOpen {
+		t.Fatal("expected help modal to close after pressing '?' again")
+	}
+
+	// F1 opens help
+	app.Update(tea.KeyMsg{Key: input.Key{Type: input.KeyF1}})
+	if app.modal == nil || !app.isHelpOpen {
+		t.Fatal("expected help modal open after F1")
+	}
+
+	// 'q' closes help
+	app.Update(tea.KeyMsg{Key: input.Key{Type: input.KeyRune, Rune: 'q'}})
+	if app.modal != nil || app.isHelpOpen {
+		t.Fatal("expected help modal closed after 'q'")
+	}
+}
+

@@ -8,6 +8,7 @@ import (
 	"github.com/baibeicha/goatui/pkg/driver/input"
 	"github.com/baibeicha/goatui/pkg/style"
 	"github.com/baibeicha/goatui/pkg/tea"
+	"github.com/baibeicha/goatui/pkg/validation"
 )
 
 // EchoMode defines how characters are displayed in the text input.
@@ -24,16 +25,24 @@ const (
 
 // TextInput is an interactive single-line text entry field.
 type TextInput struct {
-	prompt       string
-	placeholder  string
-	value        []rune
-	cursor       int
-	scrollOffset int
-	focused      bool
-	echoMode     EchoMode
-	maskRune     rune
-	promptStyle  style.Style
-	textStyle    style.Style
+	prompt           string
+	placeholder      string
+	value            []rune
+	cursor           int
+	scrollOffset     int
+	focused          bool
+	echoMode         EchoMode
+	maskRune         rune
+	promptStyle      style.Style
+	textStyle        style.Style
+	validator        *validation.Validator
+	validationRes    *validation.Result
+	validateOnChange bool
+	validateOnBlur   bool
+	showError        bool
+	errorStyle       style.Style
+	customError      string
+	onValidate       func(res validation.Result)
 }
 
 // NewTextInput creates a new text input field.
@@ -46,6 +55,10 @@ func NewTextInput() *TextInput {
 		maskRune:    '•',
 		promptStyle: style.NewStyle().Bold(true).Foreground(cell.ColorHex("#7D56F4")),
 		textStyle:   style.NewStyle(),
+		showError:   true,
+		errorStyle: style.NewStyle().
+			Bold(true).
+			Foreground(cell.ColorHex("#FF5555")),
 	}
 }
 
@@ -108,10 +121,18 @@ func (ti *TextInput) Value() string {
 	return string(ti.value)
 }
 
+func (ti *TextInput) onContentChanged() {
+	ti.validationRes = nil
+	if ti.validateOnChange {
+		ti.Validate()
+	}
+}
+
 // SetValue updates the text content and resets cursor to end.
 func (ti *TextInput) SetValue(s string) *TextInput {
 	ti.value = []rune(s)
 	ti.cursor = len(ti.value)
+	ti.onContentChanged()
 	return ti
 }
 
@@ -141,12 +162,116 @@ func (ti *TextInput) Focus() *TextInput {
 // Blur disables input capture.
 func (ti *TextInput) Blur() *TextInput {
 	ti.focused = false
+	if ti.validateOnBlur {
+		ti.Validate()
+	}
 	return ti
 }
 
 // Focused returns whether the input is currently focused.
 func (ti *TextInput) Focused() bool {
 	return ti.focused
+}
+
+// SetValidator assigns a field validator to this text input.
+func (ti *TextInput) SetValidator(v *validation.Validator) *TextInput {
+	ti.validator = v
+	return ti
+}
+
+// AddValidation appends validation rules to the input's validator.
+func (ti *TextInput) AddValidation(rules ...validation.Rule) *TextInput {
+	if ti.validator == nil {
+		ti.validator = validation.New()
+	}
+	ti.validator.Add(rules...)
+	return ti
+}
+
+// SetValidateOnChange enables or disables validation execution whenever the text value changes.
+func (ti *TextInput) SetValidateOnChange(enable bool) *TextInput {
+	ti.validateOnChange = enable
+	return ti
+}
+
+// SetValidateOnBlur enables or disables validation execution when focus is lost.
+func (ti *TextInput) SetValidateOnBlur(enable bool) *TextInput {
+	ti.validateOnBlur = enable
+	return ti
+}
+
+// SetShowError controls whether validation error messages are displayed visually.
+func (ti *TextInput) SetShowError(show bool) *TextInput {
+	ti.showError = show
+	return ti
+}
+
+// ShowError returns whether validation error messages are displayed visually.
+func (ti *TextInput) ShowError() bool {
+	return ti.showError
+}
+
+// SetErrorStyle sets the styling applied to invalid input state and error text.
+func (ti *TextInput) SetErrorStyle(s style.Style) *TextInput {
+	ti.errorStyle = s
+	return ti
+}
+
+// SetOnValidate sets a callback triggered upon validation execution.
+func (ti *TextInput) SetOnValidate(fn func(res validation.Result)) *TextInput {
+	ti.onValidate = fn
+	return ti
+}
+
+// SetCustomError sets an explicit manual error message, marking the input invalid.
+func (ti *TextInput) SetCustomError(errMsg string) *TextInput {
+	ti.customError = errMsg
+	ti.Validate()
+	return ti
+}
+
+// ClearError clears any manual custom error and resets validation result.
+func (ti *TextInput) ClearError() *TextInput {
+	ti.customError = ""
+	ti.validationRes = nil
+	return ti
+}
+
+// Validate executes validation rules against the current value and caches the result.
+func (ti *TextInput) Validate() validation.Result {
+	var res validation.Result
+	if ti.validator != nil {
+		res = ti.validator.Validate(ti.Value())
+	} else {
+		res = validation.OK()
+	}
+	if ti.customError != "" {
+		res.Valid = false
+		res.Errors = append([]string{ti.customError}, res.Errors...)
+	}
+	ti.validationRes = &res
+	if ti.onValidate != nil {
+		ti.onValidate(res)
+	}
+	return res
+}
+
+// ValidationResult returns the most recent validation result (running Validate if not yet cached).
+func (ti *TextInput) ValidationResult() validation.Result {
+	if ti.validationRes == nil {
+		return ti.Validate()
+	}
+	return *ti.validationRes
+}
+
+// IsValid returns true if the input currently passes all validation rules.
+func (ti *TextInput) IsValid() bool {
+	return ti.ValidationResult().IsValid()
+}
+
+// ErrorMessage returns the first validation error message, or empty string.
+func (ti *TextInput) ErrorMessage() string {
+	return ti.ValidationResult().Error()
 }
 
 func isWordRune(r rune) bool {
@@ -205,6 +330,7 @@ func (ti *TextInput) HandleKey(k input.Key) bool {
 		case input.KeyBackspace:
 			if ti.cursor > 0 {
 				ti.deleteWordLeft()
+				ti.onContentChanged()
 				return true
 			}
 		case input.KeyRune:
@@ -219,16 +345,19 @@ func (ti *TextInput) HandleKey(k input.Key) bool {
 				if ti.cursor > 0 {
 					ti.value = ti.value[ti.cursor:]
 					ti.cursor = 0
+					ti.onContentChanged()
 					return true
 				}
 			case 'k': // Ctrl+K: Clear text after cursor
 				if ti.cursor < len(ti.value) {
 					ti.value = ti.value[:ti.cursor]
+					ti.onContentChanged()
 					return true
 				}
 			case 'w': // Ctrl+W: Delete previous word
 				if ti.cursor > 0 {
 					ti.deleteWordLeft()
+					ti.onContentChanged()
 					return true
 				}
 			}
@@ -256,19 +385,23 @@ func (ti *TextInput) HandleKey(k input.Key) bool {
 		if ti.cursor > 0 {
 			ti.value = append(ti.value[:ti.cursor-1], ti.value[ti.cursor:]...)
 			ti.cursor--
+			ti.onContentChanged()
 			return true
 		}
 	case input.KeyDelete:
 		if ti.cursor < len(ti.value) {
 			ti.value = append(ti.value[:ti.cursor], ti.value[ti.cursor+1:]...)
+			ti.onContentChanged()
 			return true
 		}
 	case input.KeySpace:
 		ti.insertRune(' ')
+		ti.onContentChanged()
 		return true
 	case input.KeyRune:
 		if k.Rune != 0 && !isCtrl && !isAlt {
 			ti.insertRune(k.Rune)
+			ti.onContentChanged()
 			return true
 		}
 	}
@@ -298,6 +431,7 @@ func (ti *TextInput) InsertString(s string) *TextInput {
 	}
 	ti.value = append(ti.value[:ti.cursor], append(runes, ti.value[ti.cursor:]...)...)
 	ti.cursor += len(runes)
+	ti.onContentChanged()
 	return ti
 }
 
@@ -315,6 +449,12 @@ func (ti *TextInput) Draw(buf *buffer.Buffer, area buffer.Rect) {
 		pFg := ti.promptStyle.GetFg()
 		if pFg.IsDefault() {
 			pFg = cell.ColorHex("#7D56F4")
+		}
+		if ti.showError && !ti.IsValid() {
+			errFg := ti.errorStyle.GetFg()
+			if !errFg.IsDefault() {
+				pFg = errFg
+			}
 		}
 		pBg := ti.promptStyle.GetBg()
 		pMod := ti.promptStyle.GetModifier()
@@ -448,6 +588,30 @@ func (ti *TextInput) Draw(buf *buffer.Buffer, area buffer.Rect) {
 				cursorRune = displayRunes[ti.cursor]
 			}
 			buf.SetRune(cursorVisualX, area.Y, cursorRune, textFg, textBg, cell.AttrReverse)
+		}
+	}
+
+	// Draw validation error message if invalid and showError is enabled
+	if ti.showError && !ti.IsValid() {
+		errMsg := ti.ErrorMessage()
+		if errMsg != "" {
+			errFg := ti.errorStyle.GetFg()
+			if errFg.IsDefault() {
+				errFg = cell.ColorHex("#FF5555")
+			}
+			errBg := ti.errorStyle.GetBg()
+
+			if area.Height >= 2 {
+				errRect := buffer.NewRect(area.X, area.Y+1, area.Width, 1)
+				buf.SetStringAligned(errRect, "✖ "+errMsg, buffer.AlignLeft, errFg, errBg, cell.AttrBold)
+			} else {
+				textEndCol := curX + totalW + 2
+				if textEndCol+4 < area.Right() {
+					remWidth := area.Right() - textEndCol
+					errRect := buffer.NewRect(textEndCol, area.Y, remWidth, 1)
+					buf.SetStringAligned(errRect, "✖ "+errMsg, buffer.AlignLeft, errFg, errBg, cell.AttrBold)
+				}
+			}
 		}
 	}
 }

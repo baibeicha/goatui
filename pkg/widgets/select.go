@@ -153,6 +153,9 @@ func (s *Select) IsOpen() bool {
 // SetOpen opens or closes dropdown popup.
 func (s *Select) SetOpen(open bool) *Select {
 	s.isOpen = open
+	if open {
+		s.adjustScroll()
+	}
 	return s
 }
 
@@ -173,6 +176,7 @@ func (s *Select) HandleKey(key input.Key) bool {
 		case input.KeyEnter, input.KeySpace, input.KeyDown:
 			s.isOpen = true
 			s.focusedIdx = s.selectedIdx
+			s.adjustScroll()
 			return true
 		}
 		return false
@@ -235,6 +239,9 @@ func (s *Select) HandleMouse(msg tea.MouseMsg) bool {
 			s.focused = true
 			s.isOpen = !s.isOpen
 			s.focusedIdx = s.selectedIdx
+			if s.isOpen {
+				s.adjustScroll()
+			}
 			return true
 		}
 
@@ -262,8 +269,22 @@ func (s *Select) HandleMouse(msg tea.MouseMsg) bool {
 		}
 	}
 
-	if s.isOpen && (msg.Button == input.MouseWheelUp || msg.Button == input.MouseWheelDown) {
+	if s.isOpen && msg.Action == input.MouseMotion {
 		if s.popupBounds.Contains(msg.X, msg.Y) {
+			for i, b := range s.itemBounds {
+				if b.Contains(msg.X, msg.Y) {
+					itemIdx := s.scrollOff + i
+					if itemIdx >= 0 && itemIdx < len(s.items) && !s.items[itemIdx].Disabled {
+						s.focusedIdx = itemIdx
+						return true
+					}
+				}
+			}
+		}
+	}
+
+	if s.isOpen && (msg.Button == input.MouseWheelUp || msg.Button == input.MouseWheelDown) {
+		if s.bounds.Contains(msg.X, msg.Y) || s.popupBounds.Contains(msg.X, msg.Y) {
 			if msg.Button == input.MouseWheelUp && s.scrollOff > 0 {
 				s.scrollOff--
 			} else if msg.Button == input.MouseWheelDown && s.scrollOff+s.maxVisible < len(s.items) {
@@ -309,7 +330,7 @@ func (s *Select) Draw(buf *buffer.Buffer, area buffer.Rect) {
 		return
 	}
 
-	// Render popup list below area
+	// Calculate popup geometry
 	visibleCount := min(s.maxVisible, len(s.items))
 	popH := visibleCount + 2
 	popW := max(area.Width, 20)
@@ -325,29 +346,79 @@ func (s *Select) Draw(buf *buffer.Buffer, area buffer.Rect) {
 		popX = max(0, buf.Width()-popW)
 	}
 
-	popY := area.Bottom()
-	if popY+popH > buf.Height() {
-		// Flip above if no space below
+	roomBelow := buf.Height() - area.Bottom()
+	roomAbove := area.Y
+
+	var popY int
+	if roomBelow >= popH || roomBelow >= roomAbove {
+		popY = area.Bottom()
+		if popY+popH > buf.Height() {
+			popH = max(1, buf.Height()-popY)
+		}
+	} else {
 		popY = max(0, area.Y-popH)
-	}
-	if popY+popH > buf.Height() {
-		popH = max(1, buf.Height()-popY)
+		popH = min(popH, area.Y)
+		if popH < 1 {
+			popH = 1
+		}
 	}
 
 	s.popupBounds = buffer.NewRect(popX, popY, popW, popH)
+	inner := s.popupBounds.Inset(1, 1)
+	itemsToDraw := min(visibleCount, max(0, inner.Height))
+	s.itemBounds = make([]buffer.Rect, itemsToDraw)
+	for i := 0; i < itemsToDraw; i++ {
+		s.itemBounds[i] = buffer.NewRect(inner.X, inner.Y+i, inner.Width, 1)
+	}
+
+	// Draw popup immediately for local/non-overlay rendering paths
+	s.drawPopup(buf)
+
+	// Enqueue overlay pass to ensure the popup renders above sibling widgets drawn later in the tree
+	buf.AddOverlay(func(b *buffer.Buffer) {
+		s.drawPopup(b)
+	})
+}
+
+// drawPopup renders the dropdown popup box with solid background and item list.
+func (s *Select) drawPopup(buf *buffer.Buffer) {
+	if !s.isOpen || len(s.items) == 0 || s.popupBounds.IsEmpty() {
+		return
+	}
+
+	// 1. Fill entire popup area with solid background cells to eliminate transparency/bleed-through
+	bg := s.styleOpen.GetBg()
+	if bg.IsDefault() {
+		bg = cell.Color256(235)
+	}
+	fg := s.styleOpen.GetFg()
+	if fg.IsDefault() {
+		fg = cell.ColorHex("#CCCCDD")
+	}
+
+	blankCell := cell.Cell{
+		Rune:     ' ',
+		Width:    1,
+		FgType:   fg.Type,
+		Fg:       fg.Value,
+		BgType:   bg.Type,
+		Bg:       bg.Value,
+		Modifier: cell.AttrNone,
+	}
+	buf.Fill(s.popupBounds, blankCell)
+
+	// 2. Draw border and style
 	s.styleOpen.Draw(buf, s.popupBounds, "")
 
-	inner := s.popupBounds.Inset(1, 1)
-	s.itemBounds = make([]buffer.Rect, visibleCount)
-
+	// 3. Render items
+	visibleCount := len(s.itemBounds)
 	for i := 0; i < visibleCount; i++ {
 		idx := s.scrollOff + i
 		if idx >= len(s.items) {
 			break
 		}
 		it := s.items[idx]
-		itemRect := buffer.NewRect(inner.X, inner.Y+i, inner.Width, 1)
-		s.itemBounds[i] = itemRect
+		itemRect := s.itemBounds[i]
 
 		isSelected := (idx == s.selectedIdx)
 		isFocused := (idx == s.focusedIdx)
@@ -364,8 +435,28 @@ func (s *Select) Draw(buf *buffer.Buffer, area buffer.Rect) {
 			itemSt = s.styleDisabled
 		}
 
+		itemBg := itemSt.GetBg()
+		if itemBg.IsDefault() {
+			itemBg = bg
+		}
+		itemFg := itemSt.GetFg()
+		if itemFg.IsDefault() {
+			itemFg = fg
+		}
+
+		// Fill item row completely
+		buf.Fill(itemRect, cell.Cell{
+			Rune:     ' ',
+			Width:    1,
+			FgType:   itemFg.Type,
+			Fg:       itemFg.Value,
+			BgType:   itemBg.Type,
+			Bg:       itemBg.Value,
+			Modifier: itemSt.GetModifier(),
+		})
+
 		itemText := prefix + it.Label
-		pad := inner.Width - buffer.StringWidth(itemText)
+		pad := itemRect.Width - buffer.StringWidth(itemText)
 		if pad > 0 {
 			itemText += strings.Repeat(" ", pad)
 		}

@@ -4,6 +4,9 @@ import (
 	"github.com/baibeicha/goatui/pkg/core/cell"
 )
 
+// OverlayFunc defines a deferred drawing function for rendering top-layer UI (popups, dropdowns, tooltips).
+type OverlayFunc func(buf *Buffer)
+
 // Buffer is a 2D grid of terminal cells stored as a contiguous 1D slice.
 // Flat memory layout maximizes CPU L1/L2 cache locality and eliminates pointer chasing.
 type Buffer struct {
@@ -12,6 +15,7 @@ type Buffer struct {
 	width    int
 	height   int
 	clipRect *Rect
+	overlays []OverlayFunc
 }
 
 // NewBuffer allocates a new Buffer with the given dimensions.
@@ -101,6 +105,7 @@ func (b *Buffer) Reset() {
 	for i := range b.cells {
 		b.cells[i] = cell.BlankCell
 	}
+	b.overlays = nil
 }
 
 // InBounds returns true if (x, y) is inside the buffer boundaries.
@@ -279,3 +284,39 @@ func (b *Buffer) CopyFrom(src *Buffer) {
 	}
 	copy(b.cells, src.cells)
 }
+
+// AddOverlay enqueues an overlay drawing function to be executed during the overlay pass.
+func (b *Buffer) AddOverlay(fn OverlayFunc) {
+	if fn != nil {
+		b.overlays = append(b.overlays, fn)
+	}
+}
+
+// RenderOverlays executes all queued overlay drawing functions in order, on top of normal cells,
+// bypassing any active clipping rectangle so popups and dropdowns render over container borders.
+func (b *Buffer) RenderOverlays() {
+	if len(b.overlays) == 0 {
+		return
+	}
+	origClip := b.clipRect
+	b.clipRect = nil
+	defer func() {
+		b.clipRect = origClip
+	}()
+
+	for len(b.overlays) > 0 {
+		current := b.overlays
+		b.overlays = nil
+		for _, fn := range current {
+			if fn != nil {
+				fn(b)
+			}
+		}
+	}
+}
+
+// HasOverlays returns true if there are pending overlay drawing functions.
+func (b *Buffer) HasOverlays() bool {
+	return len(b.overlays) > 0
+}
+

@@ -5,7 +5,10 @@ import (
 
 	"github.com/baibeicha/goatui/pkg/core/buffer"
 	"github.com/baibeicha/goatui/pkg/core/cell"
+	"github.com/baibeicha/goatui/pkg/driver/input"
 	"github.com/baibeicha/goatui/pkg/style"
+	"github.com/baibeicha/goatui/pkg/tea"
+	"github.com/baibeicha/goatui/pkg/validation"
 	"github.com/baibeicha/goatui/pkg/widgets"
 )
 
@@ -241,6 +244,14 @@ func (kh *KeyHints) Add(key, desc string) *KeyHints {
 	return kh
 }
 
+// Hints returns the slice of registered key hints.
+func (kh *KeyHints) Hints() []KeyHint {
+	if kh == nil {
+		return nil
+	}
+	return kh.hints
+}
+
 // Draw renders the key hints.
 func (kh *KeyHints) Draw(buf *buffer.Buffer, area buffer.Rect) {
 	if area.IsEmpty() || len(kh.hints) == 0 {
@@ -294,3 +305,262 @@ type ButtonView struct {
 func NewButton(id, label string, onClick func()) *ButtonView {
 	return &ButtonView{Button: widgets.NewButton(id, label, onClick)}
 }
+
+// FormField combines a label, an interactive TextInput, required indicator, and validation error/helper display.
+type FormField struct {
+	label       string
+	input       *widgets.TextInput
+	required    bool
+	helperText  string
+	labelStyle  style.Style
+	helperStyle style.Style
+	errorStyle  style.Style
+}
+
+// NewFormField creates a declarative form field wrapping a TextInput.
+func NewFormField(label string, input *widgets.TextInput) *FormField {
+	if input == nil {
+		input = widgets.NewTextInput()
+	}
+	return &FormField{
+		label:       label,
+		input:       input,
+		labelStyle:  style.NewStyle().Bold(true).Foreground(cell.ColorHex("#E0E0FF")),
+		helperStyle: style.NewStyle().Foreground(cell.ColorHex("#888888")),
+		errorStyle:  style.NewStyle().Foreground(cell.ColorHex("#FF5555")).Bold(true),
+	}
+}
+
+// SetRequired marks the field as required and visually appends an asterisk.
+// If req is true, also registers a validation.Required rule on the underlying input.
+func (ff *FormField) SetRequired(req bool) *FormField {
+	ff.required = req
+	if req && ff.input != nil {
+		ff.input.AddValidation(validation.Required())
+	}
+	return ff
+}
+
+// Required returns whether the field is marked as required.
+func (ff *FormField) Required() bool {
+	return ff.required
+}
+
+// SetLabel sets the label text.
+func (ff *FormField) SetLabel(label string) *FormField {
+	ff.label = label
+	return ff
+}
+
+// Label returns the label text.
+func (ff *FormField) Label() string {
+	return ff.label
+}
+
+// SetHelperText sets a secondary helper/hint message shown when valid.
+func (ff *FormField) SetHelperText(text string) *FormField {
+	ff.helperText = text
+	return ff
+}
+
+// HelperText returns the helper text.
+func (ff *FormField) HelperText() string {
+	return ff.helperText
+}
+
+// SetLabelStyle configures the styling for the field's label.
+func (ff *FormField) SetLabelStyle(s style.Style) *FormField {
+	ff.labelStyle = s
+	return ff
+}
+
+// SetHelperStyle configures the styling for the helper text.
+func (ff *FormField) SetHelperStyle(s style.Style) *FormField {
+	ff.helperStyle = s
+	return ff
+}
+
+// SetErrorStyle configures the styling for error text and indicators.
+func (ff *FormField) SetErrorStyle(s style.Style) *FormField {
+	ff.errorStyle = s
+	if ff.input != nil {
+		ff.input.SetErrorStyle(s)
+	}
+	return ff
+}
+
+// Input returns the underlying TextInput widget.
+func (ff *FormField) Input() *widgets.TextInput {
+	return ff.input
+}
+
+// Value returns the current text value of the input.
+func (ff *FormField) Value() string {
+	if ff.input == nil {
+		return ""
+	}
+	return ff.input.Value()
+}
+
+// SetValue sets the text content of the input.
+func (ff *FormField) SetValue(val string) *FormField {
+	if ff.input != nil {
+		ff.input.SetValue(val)
+	}
+	return ff
+}
+
+// AddValidation adds validation rules to the underlying input.
+func (ff *FormField) AddValidation(rules ...validation.Rule) *FormField {
+	if ff.input != nil {
+		ff.input.AddValidation(rules...)
+	}
+	return ff
+}
+
+// Validate triggers validation on the underlying input and returns the result.
+func (ff *FormField) Validate() validation.Result {
+	if ff.input == nil {
+		return validation.OK()
+	}
+	return ff.input.Validate()
+}
+
+// IsValid returns whether the field is valid.
+func (ff *FormField) IsValid() bool {
+	if ff.input == nil {
+		return true
+	}
+	return ff.input.IsValid()
+}
+
+// ErrorMessage returns the current validation error message.
+func (ff *FormField) ErrorMessage() string {
+	if ff.input == nil {
+		return ""
+	}
+	return ff.input.ErrorMessage()
+}
+
+// Focus focuses the underlying text input.
+func (ff *FormField) Focus() *FormField {
+	if ff.input != nil {
+		ff.input.Focus()
+	}
+	return ff
+}
+
+// Blur blurs the underlying text input.
+func (ff *FormField) Blur() *FormField {
+	if ff.input != nil {
+		ff.input.Blur()
+	}
+	return ff
+}
+
+// Focused returns whether the underlying text input is focused.
+func (ff *FormField) Focused() bool {
+	if ff.input == nil {
+		return false
+	}
+	return ff.input.Focused()
+}
+
+// HandleKey forwards keyboard events to the underlying TextInput.
+func (ff *FormField) HandleKey(k input.Key) bool {
+	if ff.input != nil {
+		return ff.input.HandleKey(k)
+	}
+	return false
+}
+
+// HandleMouse forwards mouse events to the underlying TextInput.
+func (ff *FormField) HandleMouse(m tea.MouseMsg, area buffer.Rect) bool {
+	if ff.input != nil {
+		return ff.input.HandleMouse(m, area)
+	}
+	return false
+}
+
+// Draw renders the FormField according to available dimensions.
+func (ff *FormField) Draw(buf *buffer.Buffer, area buffer.Rect) {
+	if area.IsEmpty() || ff.input == nil {
+		return
+	}
+
+	lbl := ff.label
+	if ff.required {
+		lbl += " *"
+	}
+
+	// Case 1: Stacked multiline layout (Height >= 3)
+	// Line 0: Label
+	// Line 1: Input
+	// Line 2: Error message or Helper text
+	if area.Height >= 3 {
+		lblWidth := buffer.StringWidth(lbl)
+		lblRect := buffer.NewRect(area.X, area.Y, min(lblWidth, area.Width), 1)
+		ff.labelStyle.Draw(buf, lblRect, lbl)
+		if ff.required {
+			starX := area.X + buffer.StringWidth(ff.label) + 1
+			if starX < area.Right() {
+				buf.SetRune(starX, area.Y, '*', cell.ColorHex("#FF5555"), cell.DefaultColor(), cell.AttrBold)
+			}
+		}
+
+		inputRect := buffer.NewRect(area.X, area.Y+1, area.Width, 1)
+		prevShowError := ff.input.ShowError()
+		ff.input.SetShowError(false)
+		ff.input.Draw(buf, inputRect)
+		ff.input.SetShowError(prevShowError)
+
+		if !ff.input.IsValid() {
+			errMsg := "✖ " + ff.input.ErrorMessage()
+			errRect := buffer.NewRect(area.X, area.Y+2, area.Width, 1)
+			ff.errorStyle.Draw(buf, errRect, errMsg)
+		} else if ff.helperText != "" {
+			helpRect := buffer.NewRect(area.X, area.Y+2, area.Width, 1)
+			ff.helperStyle.Draw(buf, helpRect, ff.helperText)
+		}
+		return
+	}
+
+	// Case 2: 2-line layout (Height == 2)
+	// Line 0: Label
+	// Line 1: Input (renders its own inline error if space allows)
+	if area.Height == 2 {
+		lblWidth := buffer.StringWidth(lbl)
+		lblRect := buffer.NewRect(area.X, area.Y, min(lblWidth, area.Width), 1)
+		ff.labelStyle.Draw(buf, lblRect, lbl)
+		if ff.required {
+			starX := area.X + buffer.StringWidth(ff.label) + 1
+			if starX < area.Right() {
+				buf.SetRune(starX, area.Y, '*', cell.ColorHex("#FF5555"), cell.DefaultColor(), cell.AttrBold)
+			}
+		}
+
+		inputRect := buffer.NewRect(area.X, area.Y+1, area.Width, 1)
+		ff.input.Draw(buf, inputRect)
+		return
+	}
+
+	// Case 3: Single line inline layout (Height == 1)
+	// [Label *] [TextInput...]
+	lblWidth := buffer.StringWidth(lbl) + 1 // label + space
+	if lblWidth < area.Width {
+		lblRect := buffer.NewRect(area.X, area.Y, lblWidth, 1)
+		ff.labelStyle.Draw(buf, lblRect, lbl)
+		if ff.required {
+			starX := area.X + buffer.StringWidth(ff.label) + 1
+			if starX < area.Right() {
+				buf.SetRune(starX, area.Y, '*', cell.ColorHex("#FF5555"), cell.DefaultColor(), cell.AttrBold)
+			}
+		}
+
+		inputRect := buffer.NewRect(area.X+lblWidth, area.Y, area.Width-lblWidth, 1)
+		ff.input.Draw(buf, inputRect)
+	} else {
+		ff.input.Draw(buf, area)
+	}
+}
+
