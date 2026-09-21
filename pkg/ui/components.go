@@ -26,17 +26,22 @@ type Card struct {
 // NewCard creates a new Card component.
 func NewCard(title string, content View) *Card {
 	return &Card{
-		title:    title,
-		border:   style.BorderRounded,
-		content:  content,
+		title:   title,
+		border:  style.BorderRounded,
+		content: content,
 		borderStyle: style.NewStyle().
 			Border(style.BorderRounded).
-			BorderForeground(cell.ColorHex("#444466")).
-			Background(cell.Color256(234)),
+			BorderForeground(cell.ColorHex("#444466")),
 		headerStyle: style.NewStyle().
 			Bold(true).
 			Foreground(cell.ColorHex("#00D2FF")),
 	}
+}
+
+// SetBackground sets the background color of the card container.
+func (c *Card) SetBackground(bg cell.Color) *Card {
+	c.borderStyle = c.borderStyle.Background(bg)
+	return c
 }
 
 // SetSubtitle sets an optional subtitle for the card.
@@ -130,9 +135,14 @@ func NewStatCard(title, value, trend string) *StatCard {
 		accentColor: cell.ColorHex("#00FFAA"),
 		borderStyle: style.NewStyle().
 			Border(style.BorderRounded).
-			BorderForeground(cell.ColorHex("#444455")).
-			Background(cell.Color256(234)),
+			BorderForeground(cell.ColorHex("#444455")),
 	}
+}
+
+// SetBackground sets the background color of the stat card.
+func (s *StatCard) SetBackground(bg cell.Color) *StatCard {
+	s.borderStyle = s.borderStyle.Background(bg)
+	return s
 }
 
 // SetUp toggles the trend direction (true = positive/green, false = negative/red).
