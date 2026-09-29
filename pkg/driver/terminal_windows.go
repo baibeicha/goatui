@@ -22,10 +22,16 @@ type windowsDriver struct {
 	closeOnce   sync.Once
 	stopChan    chan struct{}
 	outWriter   *bufio.Writer
+	cfg         DriverConfig
 }
 
 // NewDriver creates an OS terminal driver for Windows.
-func NewDriver() (Driver, error) {
+func NewDriver(opts ...DriverOption) (Driver, error) {
+	cfg := DefaultDriverConfig()
+	for _, opt := range opts {
+		opt(&cfg)
+	}
+
 	hIn := windows.Handle(os.Stdin.Fd())
 	hOut := windows.Handle(os.Stdout.Fd())
 
@@ -36,6 +42,7 @@ func NewDriver() (Driver, error) {
 		events:    make(chan input.Event, 256),
 		stopChan:  make(chan struct{}),
 		outWriter: bufio.NewWriterSize(os.Stdout, 32768),
+		cfg:       cfg,
 	}, nil
 }
 
@@ -69,6 +76,12 @@ func (d *windowsDriver) Init() error {
 		"\x1b[?1000h\x1b[?1002h\x1b[?1006h" + // SGR-1006 Mouse
 		"\x1b[?1004h" + // Focus tracking
 		"\x1b[?2004h" // Bracketed paste
+
+	if !d.cfg.DisableKitty {
+		// Push Kitty Keyboard Protocol flags onto the alternate screen stack and query status
+		initSeq += input.KittyPushFlags(d.cfg.KittyFlags) + input.KittyQuery()
+	}
+
 	_, _ = d.outWriter.WriteString(initSeq)
 	_ = d.outWriter.Flush()
 
@@ -86,9 +99,15 @@ func (d *windowsDriver) Close() error {
 		exitSeq := "\x1b[?1006l\x1b[?1002l\x1b[?1000l" +
 			"\x1b[?1004l\x1b[?2026l" +
 			"\x1b[?2004l" +
-			"\x1b[?7h" + // Re-enable auto-wrap
-			"\x1b[?1049l" +
-			"\x1b[?25h\x1b[0m"
+			"\x1b[?7h" // Re-enable auto-wrap
+
+		if !d.cfg.DisableKitty {
+			exitSeq += input.KittyDisable()
+		}
+
+		exitSeq += "\x1b[?1049l" + // Exit alternate screen
+			"\x1b[?25h\x1b[0m" // Show cursor and reset styles
+
 		_, _ = d.outWriter.WriteString(exitSeq)
 		_ = d.outWriter.Flush()
 

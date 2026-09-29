@@ -22,16 +22,23 @@ type unixDriver struct {
 	stopChan    chan struct{}
 	sigChan     chan os.Signal
 	outWriter   *bufio.Writer
+	cfg         DriverConfig
 }
 
 // NewDriver creates an OS terminal driver for POSIX systems (Linux/macOS/BSD).
-func NewDriver() (Driver, error) {
+func NewDriver(opts ...DriverOption) (Driver, error) {
+	cfg := DefaultDriverConfig()
+	for _, opt := range opts {
+		opt(&cfg)
+	}
+
 	return &unixDriver{
 		parser:    input.NewParser(),
 		events:    make(chan input.Event, 256),
 		stopChan:  make(chan struct{}),
 		sigChan:   make(chan os.Signal, 4),
 		outWriter: bufio.NewWriterSize(os.Stdout, 32768),
+		cfg:       cfg,
 	}, nil
 }
 
@@ -69,6 +76,12 @@ func (d *unixDriver) Init() error {
 		"\x1b[?7l" + // Disable line auto-wrap (DECAWM)
 		"\x1b[?1000h\x1b[?1002h\x1b[?1006h" +
 		"\x1b[?2004h"
+
+	if !d.cfg.DisableKitty {
+		// Push Kitty Keyboard Protocol flags onto the alternate screen stack and query status
+		initSeq += input.KittyPushFlags(d.cfg.KittyFlags) + input.KittyQuery()
+	}
+
 	_, _ = d.outWriter.WriteString(initSeq)
 	_ = d.outWriter.Flush()
 
@@ -85,9 +98,15 @@ func (d *unixDriver) Close() error {
 		// Restore normal screen, show cursor, re-enable auto-wrap, disable mouse
 		exitSeq := "\x1b[?1006l\x1b[?1002l\x1b[?1000l" +
 			"\x1b[?2004l" +
-			"\x1b[?7h" + // Re-enable auto-wrap
-			"\x1b[?1049l" +
+			"\x1b[?7h" // Re-enable auto-wrap
+
+		if !d.cfg.DisableKitty {
+			exitSeq += input.KittyDisable()
+		}
+
+		exitSeq += "\x1b[?1049l" +
 			"\x1b[?25h\x1b[0m"
+
 		_, _ = d.outWriter.WriteString(exitSeq)
 		_ = d.outWriter.Flush()
 

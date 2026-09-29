@@ -53,3 +53,8 @@ type PasteMsg struct {
 
 // QuitMsg requests graceful termination of the program event loop.
 type QuitMsg struct{}
+
+// KittyModeMsg indicates that the terminal confirmed Kitty Keyboard Protocol support.
+type KittyModeMsg struct {
+	Flags int
+}

@@ -275,3 +275,78 @@ func TestApp_HelpDialog(t *testing.T) {
 	}
 }
 
+func TestApp_KittyKeyboardProtocol(t *testing.T) {
+	app := NewApp("KittyApp")
+	app.AddTab("tab1", "Tab 1", nil)
+	app.AddTab("tab2", "Tab 2", nil)
+	app.AddTab("tab3", "Tab 3", nil)
+
+	if app.HasKittyKeyboard() {
+		t.Fatal("expected HasKittyKeyboard to be false initially")
+	}
+
+	// Update with KittyModeMsg
+	app.Update(tea.KittyModeMsg{Flags: 7})
+	if !app.HasKittyKeyboard() || app.KittyFlags() != 7 {
+		t.Fatalf("expected HasKittyKeyboard=true and KittyFlags=7, got %v, %d", app.HasKittyKeyboard(), app.KittyFlags())
+	}
+
+	// Test Ctrl+Tab tab cycling (which is unique to Kitty keyboard protocol)
+	if app.ActiveTab() != "tab1" {
+		t.Fatalf("expected active tab 'tab1', got %s", app.ActiveTab())
+	}
+
+	// Send Ctrl+Tab (KeyTab with ModCtrl)
+	app.Update(tea.KeyMsg{Key: input.Key{Type: input.KeyTab, Mod: input.ModCtrl, Action: input.KeyPress}})
+	if app.ActiveTab() != "tab2" {
+		t.Fatalf("expected active tab 'tab2' after Ctrl+Tab, got %s", app.ActiveTab())
+	}
+
+	// Verify KeyRelease for Ctrl+Tab does NOT cycle tabs again
+	app.Update(tea.KeyMsg{Key: input.Key{Type: input.KeyTab, Mod: input.ModCtrl, Action: input.KeyRelease}})
+	if app.ActiveTab() != "tab2" {
+		t.Fatalf("expected active tab to remain 'tab2' on KeyRelease, got %s", app.ActiveTab())
+	}
+
+	// Send Ctrl+Shift+Tab (KeyBacktab with ModCtrl and ModShift)
+	app.Update(tea.KeyMsg{Key: input.Key{Type: input.KeyBacktab, Mod: input.ModCtrl | input.ModShift, Action: input.KeyPress}})
+	if app.ActiveTab() != "tab1" {
+		t.Fatalf("expected active tab 'tab1' after Ctrl+Shift+Tab, got %s", app.ActiveTab())
+	}
+
+	// Verify hotkeys do not execute on KeyRelease
+	hotkeyCount := 0
+	app.OnKeyRune('z', func() { hotkeyCount++ })
+	app.Update(tea.KeyMsg{Key: input.Key{Type: input.KeyRune, Rune: 'z', Action: input.KeyPress}})
+	if hotkeyCount != 1 {
+		t.Fatalf("expected hotkey to fire on KeyPress, count=%d", hotkeyCount)
+	}
+	app.Update(tea.KeyMsg{Key: input.Key{Type: input.KeyRune, Rune: 'z', Action: input.KeyRelease}})
+	if hotkeyCount != 1 {
+		t.Fatalf("expected hotkey count to remain 1 on KeyRelease, got %d", hotkeyCount)
+	}
+
+	// Verify Help dialog toggle does not re-toggle on KeyRelease
+	app.Update(tea.KeyMsg{Key: input.Key{Type: input.KeyRune, Rune: '?', Action: input.KeyPress}})
+	if !app.isHelpOpen {
+		t.Fatalf("expected help dialog open after '?' KeyPress")
+	}
+	app.Update(tea.KeyMsg{Key: input.Key{Type: input.KeyRune, Rune: '?', Action: input.KeyRelease}})
+	if !app.isHelpOpen {
+		t.Fatalf("expected help dialog to remain open after '?' KeyRelease")
+	}
+	app.CloseModal()
+
+	// Test configuration options
+	app.WithKittyKeyboard(KittyModeDisambiguateEscapeCodes | KittyModeReportEventTypes)
+	if !app.kittyExplicit || app.kittyDisabled || app.kittyFlags != 3 {
+		t.Fatalf("WithKittyKeyboard option failed")
+	}
+
+	app.WithoutKittyKeyboard()
+	if !app.kittyExplicit || !app.kittyDisabled {
+		t.Fatalf("WithoutKittyKeyboard option failed")
+	}
+}
+
+

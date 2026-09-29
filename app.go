@@ -68,13 +68,17 @@ type App struct {
 	keyHints      *ui.KeyHints
 	hotkeys       map[rune]func()
 	specialKeys   map[input.KeyType]func()
-	mouseHandler  func(msg tea.MouseMsg) bool
-	program       *tea.Program
-	brandStyle    style.Style
-	headerStyle   style.Style
-	activeTabSt   style.Style
-	inactiveTabSt style.Style
-	footerStyle   style.Style
+	mouseHandler     func(msg tea.MouseMsg) bool
+	program          *tea.Program
+	brandStyle       style.Style
+	headerStyle      style.Style
+	activeTabSt      style.Style
+	inactiveTabSt    style.Style
+	footerStyle      style.Style
+	hasKittyKeyboard bool
+	kittyFlags       int
+	kittyExplicit    bool
+	kittyDisabled    bool
 }
 
 // NewApp creates a new high-level App scaffold.
@@ -280,6 +284,36 @@ func (a *App) ToggleHelp() {
 	a.ShowHelp()
 }
 
+// WithKittyKeyboard configures Kitty Keyboard Protocol flags for this app scaffold.
+func (a *App) WithKittyKeyboard(flags ...int) *App {
+	a.kittyExplicit = true
+	a.kittyDisabled = false
+	if len(flags) > 0 {
+		a.kittyFlags = flags[0]
+	} else {
+		a.kittyFlags = input.KittyModeDisambiguateEscapeCodes
+	}
+	return a
+}
+
+// WithoutKittyKeyboard disables Kitty Keyboard Protocol negotiation for this app.
+func (a *App) WithoutKittyKeyboard() *App {
+	a.kittyExplicit = true
+	a.kittyDisabled = true
+	return a
+}
+
+// HasKittyKeyboard returns whether the terminal confirmed Kitty Keyboard Protocol support.
+func (a *App) HasKittyKeyboard() bool {
+	return a.hasKittyKeyboard
+}
+
+// KittyFlags returns the active Kitty Keyboard Protocol flags reported by the terminal.
+func (a *App) KittyFlags() int {
+	return a.kittyFlags
+}
+
+
 // SetStatus sets left and right statusbar messages.
 func (a *App) SetStatus(left, right string) *App {
 	a.statusLeft = left
@@ -377,12 +411,17 @@ func (a *App) Update(msg tea.Msg) (tea.Model, tea.Cmd) {
 		a.modal = msg.Modal
 		a.isHelpOpen = false
 		return a, nil
+
+	case tea.KittyModeMsg:
+		a.hasKittyKeyboard = true
+		a.kittyFlags = msg.Flags
+		return a, nil
 	}
 
 	// Modal handles events first
 	if a.modal != nil {
 		if km, ok := msg.(tea.KeyMsg); ok {
-			if a.isHelpOpen && (km.Key.Type == input.KeyEsc || (km.Key.Type == input.KeyRune && (km.Key.Rune == '?' || km.Key.Rune == 'q'))) {
+			if a.isHelpOpen && !km.Key.IsRelease() && (km.Key.Type == input.KeyEsc || (km.Key.Type == input.KeyRune && (km.Key.Rune == '?' || km.Key.Rune == 'q'))) {
 				a.CloseModal()
 				return a, nil
 			}
@@ -398,6 +437,24 @@ func (a *App) Update(msg tea.Msg) (tea.Model, tea.Cmd) {
 
 	// Keyboard handling
 	if km, ok := msg.(tea.KeyMsg); ok {
+		var activeTab *AppTab
+		if a.activeTabIdx >= 0 && a.activeTabIdx < len(a.tabs) {
+			activeTab = a.tabs[a.activeTabIdx]
+		}
+
+		// High-level App actions (quitting, tab navigation, hotkeys, help toggle) must only trigger on KeyPress or KeyRepeat, NOT on KeyRelease
+		if km.Key.IsRelease() {
+			if activeTab != nil && activeTab.OnKey != nil && activeTab.OnKey(km.Key) {
+				return a, nil
+			}
+			if activeTab != nil && activeTab.Screen != nil {
+				var cmd tea.Cmd
+				activeTab.Screen, cmd = activeTab.Screen.Update(msg)
+				return a, cmd
+			}
+			return a, nil
+		}
+
 		// Default Ctrl+Q or Ctrl+C quit
 		if km.Key.Type == input.KeyRune && km.Key.HasCtrl() && (km.Key.Rune == 'q' || km.Key.Rune == 'c') {
 			a.Quit()
@@ -425,11 +482,6 @@ func (a *App) Update(msg tea.Msg) (tea.Model, tea.Cmd) {
 			return a, nil
 		}
 
-		// Check if active tab intercepts Tab keys
-		var activeTab *AppTab
-		if a.activeTabIdx >= 0 && a.activeTabIdx < len(a.tabs) {
-			activeTab = a.tabs[a.activeTabIdx]
-		}
 		tabInterceptsTab := activeTab != nil && activeTab.interceptTab
 
 		// Plain Tab cycling: Tab advances, Shift+Tab or Backtab goes back (unless tab intercepts Tab)
@@ -652,7 +704,15 @@ func (a *App) View(f *tea.Frame) {
 
 // Run starts the application event loop with options.
 func (a *App) Run(ctx ...context.Context) error {
-	a.program = tea.NewProgram(a)
+	var opts []tea.ProgramOption
+	if a.kittyExplicit {
+		if a.kittyDisabled {
+			opts = append(opts, tea.WithoutKittyKeyboard())
+		} else {
+			opts = append(opts, tea.WithKittyKeyboard(a.kittyFlags))
+		}
+	}
+	a.program = tea.NewProgram(a, opts...)
 	_, err := a.program.Run(ctx...)
 	return err
 }

@@ -42,17 +42,42 @@ func WithCatchCtrlC(catch bool) ProgramOption {
 	}
 }
 
+// WithKittyKeyboard enables or configures Kitty Keyboard Protocol flags.
+// If flags are omitted, input.KittyModeDisambiguateEscapeCodes is used.
+func WithKittyKeyboard(flags ...int) ProgramOption {
+	return func(p *Program) {
+		p.kittyExplicit = true
+		p.kittyDisabled = false
+		if len(flags) > 0 {
+			p.kittyFlags = flags[0]
+		} else {
+			p.kittyFlags = input.KittyModeDisambiguateEscapeCodes
+		}
+	}
+}
+
+// WithoutKittyKeyboard disables Kitty Keyboard Protocol negotiation.
+func WithoutKittyKeyboard() ProgramOption {
+	return func(p *Program) {
+		p.kittyExplicit = true
+		p.kittyDisabled = true
+	}
+}
+
 // Program runs the main event loop for a Model.
 type Program struct {
-	model      Model
-	driver     driver.Driver
-	renderer   *renderer.Renderer
-	spatial    *spatial.SpatialMap
-	frame      *Frame
-	msgs       chan Msg
-	stopChan   chan struct{}
-	stopOnce   sync.Once
-	catchCtrlC bool
+	model         Model
+	driver        driver.Driver
+	renderer      *renderer.Renderer
+	spatial       *spatial.SpatialMap
+	frame         *Frame
+	msgs          chan Msg
+	stopChan      chan struct{}
+	stopOnce      sync.Once
+	catchCtrlC    bool
+	kittyExplicit bool
+	kittyDisabled bool
+	kittyFlags    int
 }
 
 // NewProgram initializes a new TEA program with options.
@@ -105,7 +130,19 @@ func (p *Program) Run(ctx ...context.Context) (Model, error) {
 
 	// Default to OS driver if none provided
 	if p.driver == nil {
-		drv, err := driver.NewDriver()
+		var drvOpts []driver.DriverOption
+		if p.kittyExplicit {
+			if p.kittyDisabled {
+				drvOpts = append(drvOpts, driver.WithoutKittyKeyboard())
+			} else {
+				drvOpts = append(drvOpts, driver.WithKittyFlags(p.kittyFlags))
+			}
+		} else {
+			// By default, GoatUI always prioritizes Kitty Keyboard Protocol
+			drvOpts = append(drvOpts, driver.WithKittyFlags(input.KittyModeDisambiguateEscapeCodes))
+		}
+
+		drv, err := driver.NewDriver(drvOpts...)
 		if err != nil {
 			return p.model, fmt.Errorf("failed to initialize terminal driver: %w", err)
 		}
@@ -279,8 +316,8 @@ func (p *Program) eventLoop() {
 func (p *Program) handleDriverEvent(ev input.Event) {
 	switch ev.Type {
 	case input.EventKey:
-		// Default exit on Ctrl+C unless explicitly caught
-		if !p.catchCtrlC && ev.Key.Type == input.KeyRune && ev.Key.Rune == 'c' && ev.Key.Mod.Has(1<<0) {
+		// Default exit on Ctrl+C unless explicitly caught (only on press/repeat, not release)
+		if !p.catchCtrlC && (ev.Key.IsPress() || ev.Key.IsRepeat()) && ev.Key.Type == input.KeyRune && ev.Key.Rune == 'c' && ev.Key.HasCtrl() {
 			p.Quit()
 			return
 		}
@@ -307,6 +344,9 @@ func (p *Program) handleDriverEvent(ev input.Event) {
 
 	case input.EventBlur:
 		p.Send(BlurMsg{})
+
+	case input.EventKittyMode:
+		p.Send(KittyModeMsg{Flags: ev.KittyFlags})
 	}
 }
 

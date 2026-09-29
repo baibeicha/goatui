@@ -218,6 +218,7 @@ type (
 	FocusMsg      = tea.FocusMsg
 	BlurMsg       = tea.BlurMsg
 	QuitMsg       = tea.QuitMsg
+	KittyModeMsg  = tea.KittyModeMsg
 )
 
 // Driver & Events
@@ -225,6 +226,7 @@ type (
 	Driver      = driver.Driver
 	Key         = input.Key
 	KeyType     = input.KeyType
+	KeyAction   = input.KeyAction
 	Mouse       = input.Mouse
 	MouseButton = input.MouseButton
 	MouseAction = input.MouseAction
@@ -232,9 +234,26 @@ type (
 
 const (
 	// Modifier shortcuts
-	ModCtrl  = input.ModCtrl
-	ModAlt   = input.ModAlt
-	ModShift = input.ModShift
+	ModCtrl     = input.ModCtrl
+	ModAlt      = input.ModAlt
+	ModShift    = input.ModShift
+	ModSuper    = input.ModSuper
+	ModMeta     = input.ModMeta
+	ModHyper    = input.ModHyper
+	ModCapsLock = input.ModCapsLock
+	ModNumLock  = input.ModNumLock
+
+	// Kitty Keyboard Protocol modes
+	KittyModeDisambiguateEscapeCodes = input.KittyModeDisambiguateEscapeCodes
+	KittyModeReportEventTypes        = input.KittyModeReportEventTypes
+	KittyModeReportAlternateKeys     = input.KittyModeReportAlternateKeys
+	KittyModeReportAllKeysAsEscape   = input.KittyModeReportAllKeysAsEscape
+	KittyModeReportAssociatedText    = input.KittyModeReportAssociatedText
+
+	// Keyboard interaction actions
+	KeyPress   = input.KeyPress
+	KeyRepeat  = input.KeyRepeat
+	KeyRelease = input.KeyRelease
 
 	KeyRune      = input.KeyRune
 	KeyEnter     = input.KeyEnter
@@ -253,6 +272,108 @@ const (
 	KeyPgDown    = input.KeyPgDown
 	KeyInsert    = input.KeyInsert
 	KeyDelete    = input.KeyDelete
+
+	KeyF1  = input.KeyF1
+	KeyF2  = input.KeyF2
+	KeyF3  = input.KeyF3
+	KeyF4  = input.KeyF4
+	KeyF5  = input.KeyF5
+	KeyF6  = input.KeyF6
+	KeyF7  = input.KeyF7
+	KeyF8  = input.KeyF8
+	KeyF9  = input.KeyF9
+	KeyF10 = input.KeyF10
+	KeyF11 = input.KeyF11
+	KeyF12 = input.KeyF12
+	KeyF13 = input.KeyF13
+	KeyF14 = input.KeyF14
+	KeyF15 = input.KeyF15
+	KeyF16 = input.KeyF16
+	KeyF17 = input.KeyF17
+	KeyF18 = input.KeyF18
+	KeyF19 = input.KeyF19
+	KeyF20 = input.KeyF20
+	KeyF21 = input.KeyF21
+	KeyF22 = input.KeyF22
+	KeyF23 = input.KeyF23
+	KeyF24 = input.KeyF24
+	KeyF25 = input.KeyF25
+	KeyF26 = input.KeyF26
+	KeyF27 = input.KeyF27
+	KeyF28 = input.KeyF28
+	KeyF29 = input.KeyF29
+	KeyF30 = input.KeyF30
+	KeyF31 = input.KeyF31
+	KeyF32 = input.KeyF32
+	KeyF33 = input.KeyF33
+	KeyF34 = input.KeyF34
+	KeyF35 = input.KeyF35
+
+	KeyCapsLock    = input.KeyCapsLock
+	KeyScrollLock  = input.KeyScrollLock
+	KeyNumLock     = input.KeyNumLock
+	KeyPrintScreen = input.KeyPrintScreen
+	KeyPause       = input.KeyPause
+	KeyMenu        = input.KeyMenu
+
+	KeyKp0         = input.KeyKp0
+	KeyKp1         = input.KeyKp1
+	KeyKp2         = input.KeyKp2
+	KeyKp3         = input.KeyKp3
+	KeyKp4         = input.KeyKp4
+	KeyKp5         = input.KeyKp5
+	KeyKp6         = input.KeyKp6
+	KeyKp7         = input.KeyKp7
+	KeyKp8         = input.KeyKp8
+	KeyKp9         = input.KeyKp9
+	KeyKpDecimal   = input.KeyKpDecimal
+	KeyKpDivide    = input.KeyKpDivide
+	KeyKpMultiply  = input.KeyKpMultiply
+	KeyKpSubtract  = input.KeyKpSubtract
+	KeyKpAdd       = input.KeyKpAdd
+	KeyKpEnter     = input.KeyKpEnter
+	KeyKpEqual     = input.KeyKpEqual
+	KeyKpSeparator = input.KeyKpSeparator
+	KeyKpLeft      = input.KeyKpLeft
+	KeyKpRight     = input.KeyKpRight
+	KeyKpUp        = input.KeyKpUp
+	KeyKpDown      = input.KeyKpDown
+	KeyKpPageUp    = input.KeyKpPageUp
+	KeyKpPageDown  = input.KeyKpPageDown
+	KeyKpHome      = input.KeyKpHome
+	KeyKpEnd       = input.KeyKpEnd
+	KeyKpInsert    = input.KeyKpInsert
+	KeyKpDelete    = input.KeyKpDelete
+	KeyKpBegin     = input.KeyKpBegin
+
+	KeyMediaPlay          = input.KeyMediaPlay
+	KeyMediaPause         = input.KeyMediaPause
+	KeyMediaPlayPause     = input.KeyMediaPlayPause
+	KeyMediaReverse       = input.KeyMediaReverse
+	KeyMediaStop          = input.KeyMediaStop
+	KeyMediaFastForward   = input.KeyMediaFastForward
+	KeyMediaRewind        = input.KeyMediaRewind
+	KeyMediaTrackNext     = input.KeyMediaTrackNext
+	KeyMediaTrackPrevious = input.KeyMediaTrackPrevious
+	KeyMediaRecord        = input.KeyMediaRecord
+	KeyLowerVolume        = input.KeyLowerVolume
+	KeyRaiseVolume        = input.KeyRaiseVolume
+	KeyMuteVolume         = input.KeyMuteVolume
+
+	KeyLeftShift      = input.KeyLeftShift
+	KeyRightShift     = input.KeyRightShift
+	KeyLeftCtrl       = input.KeyLeftCtrl
+	KeyRightCtrl      = input.KeyRightCtrl
+	KeyLeftAlt        = input.KeyLeftAlt
+	KeyRightAlt       = input.KeyRightAlt
+	KeyLeftSuper      = input.KeyLeftSuper
+	KeyRightSuper     = input.KeyRightSuper
+	KeyLeftHyper      = input.KeyLeftHyper
+	KeyRightHyper     = input.KeyRightHyper
+	KeyLeftMeta       = input.KeyLeftMeta
+	KeyRightMeta      = input.KeyRightMeta
+	KeyIsoLevel3Shift = input.KeyIsoLevel3Shift
+	KeyIsoLevel5Shift = input.KeyIsoLevel5Shift
 
 	// Mouse Buttons & Actions
 	MouseNone       = input.MouseNone
@@ -565,4 +686,14 @@ var (
 	FormatFileSize        = explorer.FormatSize
 	NewHTTPViewerScreen   = network.NewHTTPViewerScreen
 	FetchURLCmd           = network.FetchURLCmd
+
+	// Kitty Keyboard Protocol Options & Sequence Helpers
+	WithKittyKeyboard    = tea.WithKittyKeyboard
+	WithoutKittyKeyboard = tea.WithoutKittyKeyboard
+	KittyPushFlags       = input.KittyPushFlags
+	KittyPopFlags        = input.KittyPopFlags
+	KittySetFlags        = input.KittySetFlags
+	KittyQuery           = input.KittyQuery
+	KittyDisable         = input.KittyDisable
 )
+

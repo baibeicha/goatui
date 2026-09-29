@@ -100,3 +100,60 @@ func TestProgramCounterAndMouseHit(t *testing.T) {
 		t.Fatal("Program did not quit in time")
 	}
 }
+
+type testKittyModel struct {
+	kittyFlags int
+	gotKitty   bool
+}
+
+func (m testKittyModel) Init() Cmd { return nil }
+func (m testKittyModel) Update(msg Msg) (Model, Cmd) {
+	switch msg := msg.(type) {
+	case KittyModeMsg:
+		m.gotKitty = true
+		m.kittyFlags = msg.Flags
+		return m, Quit
+	}
+	return m, nil
+}
+func (m testKittyModel) View(f *Frame) {}
+
+func TestProgramKittyOptionsAndMsg(t *testing.T) {
+	mock := testkit.NewMockDriver(80, 24)
+	initial := testKittyModel{}
+
+	prog := NewProgram(initial, WithDriver(mock), WithKittyKeyboard(input.KittyModeDisambiguateEscapeCodes|input.KittyModeReportEventTypes))
+	if !prog.kittyExplicit || prog.kittyDisabled || prog.kittyFlags != 3 {
+		t.Fatalf("WithKittyKeyboard failed on Program")
+	}
+
+	progNoKitty := NewProgram(initial, WithoutKittyKeyboard())
+	if !progNoKitty.kittyExplicit || !progNoKitty.kittyDisabled {
+		t.Fatalf("WithoutKittyKeyboard failed on Program")
+	}
+
+	done := make(chan Model, 1)
+	go func() {
+		finalModel, err := prog.Run()
+		if err != nil {
+			t.Errorf("Program.Run failed: %v", err)
+		}
+		done <- finalModel
+	}()
+
+	time.Sleep(20 * time.Millisecond)
+
+	// Inject KittyMode event into driver
+	prog.Send(KittyModeMsg{Flags: 3})
+
+	select {
+	case final := <-done:
+		m := final.(testKittyModel)
+		if !m.gotKitty || m.kittyFlags != 3 {
+			t.Fatalf("Expected KittyModeMsg with flags 3, got: %+v", m)
+		}
+	case <-time.After(2 * time.Second):
+		t.Fatal("Program did not receive KittyModeMsg in time")
+	}
+}
+

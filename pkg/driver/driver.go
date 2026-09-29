@@ -24,6 +24,38 @@ type Driver interface {
 	Flush() error
 }
 
+// DriverOption configures terminal driver behavior.
+type DriverOption func(*DriverConfig)
+
+// DriverConfig holds runtime configuration for the OS terminal driver.
+type DriverConfig struct {
+	KittyFlags   int  // Kitty Keyboard Protocol flags to push (default: input.KittyModeDisambiguateEscapeCodes)
+	DisableKitty bool // Whether to disable Kitty Keyboard Protocol negotiation
+}
+
+// DefaultDriverConfig returns the default driver configuration with Kitty Keyboard Protocol prioritized.
+func DefaultDriverConfig() DriverConfig {
+	return DriverConfig{
+		KittyFlags:   input.KittyModeDisambiguateEscapeCodes,
+		DisableKitty: false,
+	}
+}
+
+// WithKittyFlags sets the Kitty Keyboard Protocol flags to push on initialization.
+func WithKittyFlags(flags int) DriverOption {
+	return func(cfg *DriverConfig) {
+		cfg.KittyFlags = flags
+		cfg.DisableKitty = false
+	}
+}
+
+// WithoutKittyKeyboard disables pushing Kitty Keyboard Protocol escape sequences.
+func WithoutKittyKeyboard() DriverOption {
+	return func(cfg *DriverConfig) {
+		cfg.DisableKitty = true
+	}
+}
+
 var (
 	teardownMu    sync.Mutex
 	teardownHooks []func()
@@ -52,6 +84,7 @@ func TearDown() {
 	// Always emit full terminal restore escape sequence to stdout
 	_, _ = os.Stdout.WriteString(
 		"\x1b[0m" + // Reset styles
+			"\x1b[<u\x1b[=0u" + // Pop and reset Kitty Keyboard Protocol
 			"\x1b[?1006l\x1b[?1003l\x1b[?1002l\x1b[?1000l" + // Disable mouse
 			"\x1b[?2004l" + // Disable bracketed paste
 			"\x1b[?1004l" + // Disable focus reporting
