@@ -18,8 +18,8 @@ func TestMarkdownRenderer_ParseAndRender(t *testing.T) {
 	mr.Render(buf, 0, 0, 80, 24, 0, DefaultMarkdownStyle())
 
 	// Validate cells were written
-	c := buf.Cell(1, 0)
-	if c == nil || c.Rune == ' ' {
-		t.Fatal("expected non-empty rune for header prefix")
+	c := buf.Cell(3, 0)
+	if c == nil || c.Rune != 'H' {
+		t.Fatalf("expected 'H' for header title, got %v", c)
 	}
 }
