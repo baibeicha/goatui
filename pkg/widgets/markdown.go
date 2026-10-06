@@ -225,11 +225,17 @@ func (mr *MarkdownRenderer) Render(buf *buffer.Buffer, startX, startY, width, he
 
 	for y := 0; y < height; y++ {
 		lineIdx := scrollY + y
-		if lineIdx >= len(mr.Lines) {
-			break
-		}
 		screenY := startY + y
 		if screenY < 0 || screenY >= buf.Height() {
+			continue
+		}
+
+		// Clear row background
+		for x := 0; x < width; x++ {
+			buf.SetRune(startX+x, screenY, ' ', st.Fg, st.Bg, cell.AttrNone)
+		}
+
+		if lineIdx >= len(mr.Lines) {
 			continue
 		}
 
@@ -237,24 +243,18 @@ func (mr *MarkdownRenderer) Render(buf *buffer.Buffer, startX, startY, width, he
 
 		switch md.Kind {
 		case MdH1:
-			prefix := "▌ "
-			for i, r := range prefix {
-				buf.SetRune(startX+1+i, screenY, r, st.H1Fg, st.Bg, cell.AttrBold)
-			}
-			for i, r := range md.Text {
-				if i+3 < width-2 {
-					buf.SetRune(startX+3+i, screenY, r, st.H1Fg, st.Bg, cell.AttrBold)
+			headerText := " " + strings.ToUpper(md.Text) + " "
+			for i, r := range headerText {
+				if i < width-2 {
+					buf.SetRune(startX+2+i, screenY, r, st.Bg, st.H1Fg, cell.AttrBold)
 				}
 			}
 
 		case MdH2:
-			prefix := "◈ "
-			for i, r := range prefix {
-				buf.SetRune(startX+1+i, screenY, r, st.H2Fg, st.Bg, cell.AttrBold)
-			}
-			for i, r := range md.Text {
-				if i+3 < width-2 {
-					buf.SetRune(startX+3+i, screenY, r, st.H2Fg, st.Bg, cell.AttrBold)
+			title := "## " + md.Text
+			for i, r := range title {
+				if i < width-2 {
+					buf.SetRune(startX+2+i, screenY, r, st.H2Fg, st.Bg, cell.AttrBold)
 				}
 			}
 
