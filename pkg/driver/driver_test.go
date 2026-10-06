@@ -1,6 +1,7 @@
 package driver
 
 import (
+	"os"
 	"testing"
 
 	"github.com/baibeicha/goatui/pkg/driver/input"
@@ -57,5 +58,23 @@ func TestTeardownHook(t *testing.T) {
 	TearDown()
 	if !called {
 		t.Fatal("expected teardown hook to be executed")
+	}
+}
+
+func TestConinOpening(t *testing.T) {
+	f, err := os.OpenFile("CONIN$", os.O_RDWR, 0)
+	if err != nil {
+		t.Logf("CONIN$ open: %v", err)
+	} else {
+		defer f.Close()
+		t.Logf("CONIN$ opened successfully: fd=%v", f.Fd())
+	}
+
+	fout, err := os.OpenFile("CONOUT$", os.O_RDWR, 0)
+	if err != nil {
+		t.Logf("CONOUT$ open: %v", err)
+	} else {
+		defer fout.Close()
+		t.Logf("CONOUT$ opened successfully: fd=%v", fout.Fd())
 	}
 }

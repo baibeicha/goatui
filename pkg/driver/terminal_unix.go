@@ -70,11 +70,12 @@ func (d *unixDriver) Init() error {
 	signal.Notify(d.sigChan, syscall.SIGWINCH)
 	go d.signalLoop()
 
-	// Enter alternate screen, hide cursor, disable auto-wrap, enable mouse & bracketed paste
+	// Enter alternate screen, clear screen, hide cursor, disable auto-wrap, enable mouse & bracketed paste
 	initSeq := "\x1b[?1049h" +
+		"\x1b[2J\x1b[H" +
 		"\x1b[?25l" +
 		"\x1b[?7l" + // Disable line auto-wrap (DECAWM)
-		"\x1b[?1000h\x1b[?1002h\x1b[?1006h" +
+		"\x1b[?1000h\x1b[?1003h\x1b[?1006h" +
 		"\x1b[?2004h"
 
 	if !d.cfg.DisableKitty {
@@ -96,7 +97,7 @@ func (d *unixDriver) Close() error {
 		signal.Stop(d.sigChan)
 
 		// Restore normal screen, show cursor, re-enable auto-wrap, disable mouse
-		exitSeq := "\x1b[?1006l\x1b[?1002l\x1b[?1000l" +
+		exitSeq := "\x1b[?1006l\x1b[?1003l\x1b[?1002l\x1b[?1000l" +
 			"\x1b[?2004l" +
 			"\x1b[?7h" // Re-enable auto-wrap
 

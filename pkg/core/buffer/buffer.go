@@ -146,6 +146,9 @@ func (b *Buffer) SetRune(x, y int, r rune, fg, bg cell.Color, mod cell.Modifier)
 	if b.clipRect != nil && !b.clipRect.Contains(x, y) {
 		return
 	}
+	if r < 32 || r == 0x7f || (r >= 0x80 && r <= 0x9f) {
+		r = ' '
+	}
 	w := uint8(RuneWidth(r))
 	if w == 0 && r != 0 {
 		w = 1

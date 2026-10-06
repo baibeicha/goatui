@@ -1,4 +1,4 @@
-﻿package terminal
+package terminal
 
 import (
 	"sync"
@@ -102,6 +102,13 @@ type VTerm struct {
 	csiParams  []int
 	csiPrivate bool
 	oscBuf     []byte
+}
+
+// InAltScreen reports whether the terminal is currently displaying the alternate screen buffer.
+func (v *VTerm) InAltScreen() bool {
+	v.mu.Lock()
+	defer v.mu.Unlock()
+	return v.inAltScreen
 }
 
 // NewVTerm creates a new virtual terminal emulator with the given grid dimensions.

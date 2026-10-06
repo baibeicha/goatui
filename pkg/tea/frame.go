@@ -7,9 +7,26 @@ import (
 
 // Frame encapsulates the drawing canvas, scratch arena, and spatial interaction registry for a single frame.
 type Frame struct {
-	Buffer  *buffer.Buffer
-	Spatial *spatial.SpatialMap
-	Arena   *FrameArena
+	Buffer        *buffer.Buffer
+	Spatial       *spatial.SpatialMap
+	Arena         *FrameArena
+	CursorVisible bool
+	CursorX       int
+	CursorY       int
+	CursorShape   int
+}
+
+// ShowCursor registers the terminal hardware cursor position and DECSCUSR shape for this frame.
+func (f *Frame) ShowCursor(x, y int, shape int) {
+	f.CursorVisible = true
+	f.CursorX = x
+	f.CursorY = y
+	f.CursorShape = shape
+}
+
+// HideCursor ensures the terminal hardware cursor is hidden for this frame.
+func (f *Frame) HideCursor() {
+	f.CursorVisible = false
 }
 
 // Area returns the full usable screen area of the current frame.

@@ -278,10 +278,17 @@ func (p *Program) renderFrame() {
 	if p.frame.Arena != nil {
 		p.frame.Arena.Reset()
 	}
+	p.frame.HideCursor()
 
 	p.model.View(p.frame)
 	if p.frame.Buffer != nil {
 		p.frame.Buffer.RenderOverlays()
+	}
+
+	if p.frame.CursorVisible {
+		p.renderer.ShowCursor(p.frame.CursorX, p.frame.CursorY, renderer.CursorShape(p.frame.CursorShape))
+	} else {
+		p.renderer.HideCursor()
 	}
 
 	_ = p.renderer.Render(p.driver.Writer())

@@ -521,7 +521,7 @@ func parseSGRMouse(b []byte) (consumed int, ev Event, ok bool, incomplete bool) 
 	isWheel := (btn & 64) != 0
 
 	if isMotion {
-		if isRelease {
+		if btnBase == 3 || isRelease {
 			mouse.Action = MouseMotion
 		} else {
 			mouse.Action = MouseDrag

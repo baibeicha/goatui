@@ -118,6 +118,52 @@ func (tm *ToastManager) Toasts() []*ToastItem {
 	return tm.toasts
 }
 
+// Dismiss removes a toast by index.
+func (tm *ToastManager) Dismiss(index int) bool {
+	if index >= 0 && index < len(tm.toasts) {
+		tm.toasts = append(tm.toasts[:index], tm.toasts[index+1:]...)
+		return true
+	}
+	return false
+}
+
+// DismissByID removes a toast by its unique ID.
+func (tm *ToastManager) DismissByID(id string) bool {
+	for i, t := range tm.toasts {
+		if t.ID == id {
+			return tm.Dismiss(i)
+		}
+	}
+	return false
+}
+
+// HandleClick checks if a mouse click hit any active toast card or its close button [✕].
+func (tm *ToastManager) HandleClick(x, y int, screen buffer.Rect) bool {
+	if len(tm.toasts) == 0 || screen.IsEmpty() || screen.Width < 12 || screen.Height < 6 {
+		return false
+	}
+	toastWidth := min(44, screen.Width-4)
+	if toastWidth < 8 {
+		return false
+	}
+	toastHeight := 4
+	currY := screen.Y + 1
+
+	for i := 0; i < len(tm.toasts); i++ {
+		if currY+toastHeight > screen.Bottom()-2 {
+			break
+		}
+		cardX := screen.Right() - toastWidth - 1
+		cardRect := buffer.NewRect(cardX, currY, toastWidth, toastHeight)
+		if x >= cardRect.X && x < cardRect.Right() && y >= cardRect.Y && y < cardRect.Bottom() {
+			tm.Dismiss(i)
+			return true
+		}
+		currY += toastHeight + 1
+	}
+	return false
+}
+
 // Draw renders active toast notifications into the top-right corner of the screen.
 func (tm *ToastManager) Draw(buf *buffer.Buffer, screen buffer.Rect) {
 	if len(tm.toasts) == 0 || screen.IsEmpty() || screen.Width < 12 || screen.Height < 6 {
@@ -142,17 +188,17 @@ func (tm *ToastManager) Draw(buf *buffer.Buffer, screen buffer.Rect) {
 		cardRect := buffer.NewRect(cardX, currY, toastWidth, toastHeight)
 
 		borderFg := cell.ColorHex("#00D2FF")
-		icon := "ℹ"
+		icon := "[INFO]"
 		switch t.Level {
 		case ToastSuccess:
 			borderFg = cell.ColorHex("#00FFAA")
-			icon = "✔"
+			icon = "[OK]"
 		case ToastWarn:
 			borderFg = cell.ColorHex("#FFB86C")
-			icon = "⚠"
+			icon = "[WARN]"
 		case ToastError:
 			borderFg = cell.ColorHex("#FF5555")
-			icon = "✖"
+			icon = "[ERR]"
 		}
 
 		cardBg := cell.Color256(234)
@@ -166,6 +212,12 @@ func (tm *ToastManager) Draw(buf *buffer.Buffer, screen buffer.Rect) {
 			Background(cardBg).
 			Title(titleText)
 		st.Draw(buf, cardRect, "")
+
+		// Draw close button [✕] in top-right of card
+		closeBtnX := cardRect.Right() - 3
+		if closeBtnX > cardRect.X+len(titleText) {
+			buf.SetRune(closeBtnX, cardRect.Y, '✕', cell.ColorHex("#FF5555"), cardBg, cell.AttrBold)
+		}
 
 		// Message text
 		innerMsgW := cardRect.Width - 4

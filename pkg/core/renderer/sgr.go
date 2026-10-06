@@ -154,7 +154,7 @@ func appendUint(dst []byte, n int) []byte {
 
 // appendRune appends UTF-8 bytes of r to dst without heap allocation.
 func appendRune(dst []byte, r rune) []byte {
-	if r == 0 {
+	if r < 32 || r == 0x7f || (r >= 0x80 && r <= 0x9f) {
 		return append(dst, ' ')
 	}
 	var buf [utf8.UTFMax]byte
