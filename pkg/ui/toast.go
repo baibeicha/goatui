@@ -218,7 +218,8 @@ func wrapToastText(msg string, maxWidth, maxLines int) []string {
 	if len(lines) == maxLines && buffer.StringWidth(msg) > buffer.StringWidth(strings.Join(lines, " ")) {
 		last := lines[maxLines-1]
 		runes := []rune(last)
-		for len(runes) > 0 && buffer.StringWidth(string(runes))+1 > maxWidth {
+		ellW := buffer.StringWidth("…")
+		for len(runes) > 0 && buffer.StringWidth(string(runes))+ellW > maxWidth {
 			runes = runes[:len(runes)-1]
 		}
 		lines[maxLines-1] = string(runes) + "…"
