@@ -7,10 +7,78 @@ import (
 	"io"
 	"os"
 	"sync"
+	"unicode/utf16"
+	"unicode/utf8"
 
 	"github.com/baibeicha/goatui/pkg/driver/input"
 	"golang.org/x/sys/windows"
 )
+
+type rawConsoleReader struct {
+	handle         windows.Handle
+	fallback       io.Reader
+	utf16Buf       []uint16
+	utf8Buf        []byte
+	savedSurrogate rune
+}
+
+func newRawConsoleReader(h windows.Handle, fallback io.Reader) io.Reader {
+	var mode uint32
+	if err := windows.GetConsoleMode(h, &mode); err != nil {
+		return fallback
+	}
+	return &rawConsoleReader{
+		handle:   h,
+		fallback: fallback,
+		utf16Buf: make([]uint16, 256),
+		utf8Buf:  make([]byte, 0, 1024),
+	}
+}
+
+func (r *rawConsoleReader) Read(p []byte) (int, error) {
+	if len(p) == 0 {
+		return 0, nil
+	}
+
+	for len(r.utf8Buf) == 0 {
+		var nw uint32
+		err := windows.ReadConsole(r.handle, &r.utf16Buf[0], uint32(len(r.utf16Buf)), &nw, nil)
+		if err != nil {
+			if r.fallback != nil {
+				return r.fallback.Read(p)
+			}
+			return 0, err
+		}
+		if nw == 0 {
+			return 0, nil
+		}
+
+		u16 := r.utf16Buf[:nw]
+		for i := 0; i < len(u16); i++ {
+			rn := rune(u16[i])
+			if r.savedSurrogate != 0 {
+				rn = utf16.DecodeRune(r.savedSurrogate, rn)
+				r.savedSurrogate = 0
+			} else if utf16.IsSurrogate(rn) {
+				if i+1 < len(u16) {
+					rn = utf16.DecodeRune(rn, rune(u16[i+1]))
+					i++
+				} else {
+					r.savedSurrogate = rn
+					continue
+				}
+			}
+			// Important: Preserve 0x1A (Ctrl-Z) and all other control characters.
+			// Go standard library's internal/poll.fd_windows.go strips 0x1A when reading
+			// from *os.File console handles, breaking Ctrl+Z in cmd.exe.
+			r.utf8Buf = utf8.AppendRune(r.utf8Buf, rn)
+		}
+	}
+
+	n := copy(p, r.utf8Buf)
+	r.utf8Buf = r.utf8Buf[n:]
+	return n, nil
+}
 
 type windowsDriver struct {
 	hStdin      windows.Handle
@@ -49,8 +117,10 @@ func NewDriver(opts ...DriverOption) (Driver, error) {
 		if f, err := os.OpenFile("CONIN$", os.O_RDWR, 0); err == nil {
 			conInFile = f
 			hIn = windows.Handle(f.Fd())
-			inReader = f
+			inReader = newRawConsoleReader(hIn, f)
 		}
+	} else {
+		inReader = newRawConsoleReader(hIn, os.Stdin)
 	}
 
 	// If stdout is not a console, connect to CONOUT$
@@ -192,19 +262,22 @@ func (d *windowsDriver) readLoop() {
 			return
 		default:
 			n, err := d.inReader.Read(buf)
-			if err != nil || n == 0 {
+			if err != nil {
 				// If reading from pipe returned EOF, switch to CONIN$ if not already done
 				if d.conInFile == nil {
 					if conIn, ferr := os.OpenFile("CONIN$", os.O_RDWR, 0); ferr == nil {
 						d.conInFile = conIn
 						d.hStdin = windows.Handle(conIn.Fd())
-						d.inReader = conIn
 						inMode := uint32(windows.ENABLE_EXTENDED_FLAGS | windows.ENABLE_VIRTUAL_TERMINAL_INPUT | windows.ENABLE_WINDOW_INPUT | windows.ENABLE_MOUSE_INPUT)
 						_ = windows.SetConsoleMode(d.hStdin, inMode)
+						d.inReader = newRawConsoleReader(d.hStdin, conIn)
 						continue
 					}
 				}
 				return
+			}
+			if n == 0 {
+				continue
 			}
 			d.parser.Parse(buf[:n], func(ev input.Event) {
 				select {
