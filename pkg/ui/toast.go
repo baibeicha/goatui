@@ -2,6 +2,7 @@ package ui
 
 import (
 	"fmt"
+	"strings"
 	"time"
 
 	"github.com/baibeicha/goatui/pkg/core/buffer"
@@ -51,7 +52,7 @@ func NewToastManager(maxShow int) *ToastManager {
 // Add pushes a new notification card into the queue.
 func (tm *ToastManager) Add(level ToastLevel, title, message string, duration ...time.Duration) {
 	tm.counter++
-	dur := 3500 * time.Millisecond
+	dur := 2000 * time.Millisecond
 	if len(duration) > 0 && duration[0] > 0 {
 		dur = duration[0]
 	}
@@ -142,11 +143,11 @@ func (tm *ToastManager) HandleClick(x, y int, screen buffer.Rect) bool {
 	if len(tm.toasts) == 0 || screen.IsEmpty() || screen.Width < 12 || screen.Height < 6 {
 		return false
 	}
-	toastWidth := min(44, screen.Width-4)
+	toastWidth := min(30, screen.Width-4)
 	if toastWidth < 8 {
 		return false
 	}
-	toastHeight := 4
+	toastHeight := 5
 	currY := screen.Y + 1
 
 	for i := 0; i < len(tm.toasts); i++ {
@@ -164,17 +165,79 @@ func (tm *ToastManager) HandleClick(x, y int, screen buffer.Rect) bool {
 	return false
 }
 
+// wrapToastText breaks a message into up to maxLines lines fitted within maxWidth columns.
+func wrapToastText(msg string, maxWidth, maxLines int) []string {
+	if maxWidth <= 0 || maxLines <= 0 {
+		return nil
+	}
+	words := strings.Fields(msg)
+	if len(words) == 0 {
+		return nil
+	}
+
+	var lines []string
+	var curLine strings.Builder
+
+	for _, w := range words {
+		wordLen := buffer.StringWidth(w)
+		if curLine.Len() == 0 {
+			if wordLen <= maxWidth {
+				curLine.WriteString(w)
+			} else {
+				runes := []rune(w)
+				for len(runes) > 0 {
+					take := min(len(runes), maxWidth)
+					lines = append(lines, string(runes[:take]))
+					runes = runes[take:]
+					if len(lines) >= maxLines {
+						break
+					}
+				}
+				if len(lines) >= maxLines {
+					break
+				}
+			}
+		} else {
+			if buffer.StringWidth(curLine.String())+1+wordLen <= maxWidth {
+				curLine.WriteByte(' ')
+				curLine.WriteString(w)
+			} else {
+				lines = append(lines, curLine.String())
+				curLine.Reset()
+				if len(lines) >= maxLines {
+					break
+				}
+				curLine.WriteString(w)
+			}
+		}
+	}
+	if curLine.Len() > 0 && len(lines) < maxLines {
+		lines = append(lines, curLine.String())
+	}
+
+	if len(lines) == maxLines && buffer.StringWidth(msg) > buffer.StringWidth(strings.Join(lines, " ")) {
+		last := lines[maxLines-1]
+		runes := []rune(last)
+		for len(runes) > 0 && buffer.StringWidth(string(runes))+1 > maxWidth {
+			runes = runes[:len(runes)-1]
+		}
+		lines[maxLines-1] = string(runes) + "…"
+	}
+
+	return lines
+}
+
 // Draw renders active toast notifications into the top-right corner of the screen.
 func (tm *ToastManager) Draw(buf *buffer.Buffer, screen buffer.Rect) {
 	if len(tm.toasts) == 0 || screen.IsEmpty() || screen.Width < 12 || screen.Height < 6 {
 		return
 	}
 
-	toastWidth := min(44, screen.Width-4)
+	toastWidth := min(30, screen.Width-4)
 	if toastWidth < 8 {
 		return
 	}
-	toastHeight := 4
+	toastHeight := 5
 
 	now := time.Now()
 	currY := screen.Y + 1
@@ -219,19 +282,18 @@ func (tm *ToastManager) Draw(buf *buffer.Buffer, screen buffer.Rect) {
 			buf.SetRune(closeBtnX, cardRect.Y, '✕', cell.ColorHex("#FF5555"), cardBg, cell.AttrBold)
 		}
 
-		// Message text
+		// Message text (wrapped to up to 2 lines)
 		innerMsgW := cardRect.Width - 4
-		msgText := t.Message
-		if buffer.StringWidth(msgText) > innerMsgW && innerMsgW > 3 {
-			runes := []rune(msgText)
-			for len(runes) > 0 && buffer.StringWidth(string(runes)) > innerMsgW-1 {
-				runes = runes[:len(runes)-1]
+		if innerMsgW > 3 {
+			lines := wrapToastText(t.Message, innerMsgW, 2)
+			for li, line := range lines {
+				if li < 2 {
+					buf.SetString(cardRect.X+2, cardRect.Y+1+li, line, cell.ColorHex("#FFFFFF"), cardBg, cell.AttrNone)
+				}
 			}
-			msgText = string(runes) + "…"
 		}
-		buf.SetString(cardRect.X+2, cardRect.Y+1, msgText, cell.ColorHex("#FFFFFF"), cardBg, cell.AttrNone)
 
-		// Expiration bar
+		// Expiration bar (on row cardRect.Y+3)
 		remaining := t.ExpiresAt.Sub(now)
 		progressRatio := float64(remaining) / float64(t.Duration)
 		if progressRatio < 0 {
@@ -244,7 +306,7 @@ func (tm *ToastManager) Draw(buf *buffer.Buffer, screen buffer.Rect) {
 		filledW := int(float64(barW) * progressRatio)
 		for i := 0; i < barW; i++ {
 			bx := cardRect.X + 2 + i
-			by := cardRect.Y + 2
+			by := cardRect.Y + 3
 			if i < filledW {
 				buf.SetRune(bx, by, '━', borderFg, cardBg, cell.AttrNone)
 			} else {
